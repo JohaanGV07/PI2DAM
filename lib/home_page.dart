@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_firestore_login/manage_products_screen.dart';
 import 'login_page.dart';
 import 'admin_page.dart';
 
@@ -182,29 +183,55 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 30),
 
-            // En lib/home_page.dart, dentro del build:
+            // En lib/home_page.dart, dentro del body:
+
+            // ... (Después del saludo "Hola, ${widget.username}") ...
+            
+            const SizedBox(height: 30),
+
+            // Botones para redirigir si es admin
             if (widget.rol == 'admin') ...[
+              
+              // Botón 1 (El que ya tenías)
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => AdminPage(
-                        // Así es como pasamos el username
                         currentAdminUsername: widget.username,
                       ),
                     ),
                   );
                 },
                 icon: const Icon(Icons.admin_panel_settings),
-                label: const Text(
-                  "Administrar usuarios",
-                ), // O "Administrar Cafetería"
+                label: const Text("Administrar Usuarios"), // Texto ajustado
                 style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(200, 48),
+                  minimumSize: const Size(220, 48),
+                ),
+              ),
+
+              const SizedBox(height: 10), // Espacio entre botones
+
+              // Botón 2 (¡El nuevo!)
+              ElevatedButton.icon(
+                onPressed: () {
+                  // Importa 'manage_products_screen.dart' al inicio de tu home_page.dart
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ManageProductsScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.coffee), // Icono de cafetería
+                label: const Text("Administrar Catálogo"),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(220, 48),
                 ),
               ),
             ],
+// ...
           ],
         ),
       ),

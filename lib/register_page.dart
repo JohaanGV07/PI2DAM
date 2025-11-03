@@ -1,29 +1,37 @@
-// lib/login_page.dart
+// lib/register_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'home_page.dart';
-import 'register_page.dart'; // <-- 1. Importa la nueva página
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+import 'package.flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  
   bool _isLoading = false;
   String? _errorMessage;
 
-  Future<void> _login() async {
+  Future<void> _register() async {
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (username.isEmpty || password.isEmpty) {
+    if (username.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       setState(() => _errorMessage = "Por favor completa todos los campos");
+      return;
+    }
+
+    if (password != confirmPassword) {
+      setState(() => _errorMessage = "Las contraseñas no coinciden");
       return;
     }
 
@@ -33,51 +41,50 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      // 1. Comprobar si el username ya existe
       final query = await FirebaseFirestore.instance
           .collection('users')
           .where('username', isEqualTo: username)
           .limit(1)
           .get();
 
-      if (query.docs.isEmpty) {
-        setState(() => _errorMessage = "Usuario no encontrado");
+      if (query.docs.isNotEmpty) {
+        // Si el usuario ya existe, mostramos error
+        setState(() => _errorMessage = "El nombre de usuario ya está en uso");
       } else {
-        final userData = query.docs.first.data();
-        if (userData['password'] == password) {
-          // Login exitoso
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => HomePage(
-                username: userData['username'],
-                imageURL: userData['imageURL'],
-                rol: userData['rol'],
-              ),
-            ),
+        // 2. Si no existe, lo creamos
+        await FirebaseFirestore.instance.collection('users').add({
+          'username': username,
+          'password': password, // Se guarda en texto plano (como en tu admin_page)
+          'rol': 'user', // Todos los registros nuevos son 'user'
+          'imageURL': 'https://www.shutterstock.com/image-vector/default-avatar-profile-icon-vector-600nw-1725655669.jpg', // Imagen por defecto
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("¡Registro exitoso! Ya puedes iniciar sesión.")),
           );
-        } else {
-          setState(() => _errorMessage = "Contraseña incorrecta");
+          Navigator.pop(context); // Volvemos a la página de login
         }
       }
     } catch (e) {
-      setState(() => _errorMessage = "Error al conectar con Firestore: $e");
+      setState(() => _errorMessage = "Error en el registro: $e");
     } finally {
       setState(() => _isLoading = false);
     }
-  }
-
-  // --- 2. Función para navegar a la página de registro ---
-  void _navigateToRegister() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const RegisterPage()),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
+      // Añadimos un AppBar para poder volver atrás fácilmente
+      appBar: AppBar(
+        title: const Text("Registrarse"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black,
+      ),
       body: Center(
         child: Card(
           elevation: 5,
@@ -89,7 +96,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text("Iniciar sesión",
+                  const Text("Crear cuenta",
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
                   TextField(
@@ -108,27 +115,29 @@ class _LoginPageState extends State<LoginPage> {
                       border: OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 15),
+                  TextField(
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: "Confirmar Contraseña",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                   const SizedBox(height: 20),
                   if (_errorMessage != null)
                     Text(_errorMessage!,
                         style: const TextStyle(color: Colors.red, fontSize: 14)),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
+                    onPressed: _isLoading ? null : _register,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 48),
                     ),
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("Entrar"),
+                        : const Text("Registrarse"),
                   ),
-                  
-                  // --- 3. Botón para ir a Registrarse ---
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: _navigateToRegister,
-                    child: const Text("¿No tienes cuenta? Regístrate aquí"),
-                  )
                 ],
               ),
             ),
