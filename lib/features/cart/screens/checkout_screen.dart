@@ -4,16 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_firestore_login/core/providers/cart_provider.dart';
 import 'package:flutter_firestore_login/core/services/order_service.dart';
-import 'package:flutter_firestore_login/login_page.dart';
+
+// Imports para el mapa
+import 'package:geocoding/geocoding.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:flutter_firestore_login/address_picker_map_screen.dart';
+
 
 class CheckoutScreen extends StatefulWidget {
-  // *** AÑADIMOS EL USERNAME ***
   final String username;
-
-  const CheckoutScreen({
-    super.key,
-    required this.username, // Hacemos que sea obligatorio
-  });
+  const CheckoutScreen({super.key, required this.username});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -21,40 +21,91 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final OrderService _orderService = OrderService();
-  final TextEditingController _addressController = TextEditingController(
-      text: "Camins al Grau, 46023 Valencia");
+  final TextEditingController _addressController = TextEditingController();
+  
+  // Ubicación por defecto de la cafetería
+  LatLng _selectedDeliveryLocation = LatLng(39.458090, -0.350943);
   
   bool _isProcessing = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    // Al iniciar, convertimos la ubicación por defecto en texto
+    _getAddressFromLatLng(_selectedDeliveryLocation, isDefault: true);
+  }
 
+  // Navegar al mapa y esperar el resultado
+  Future<void> _openMapSelector() async {
+    FocusScope.of(context).unfocus();
+
+    final LatLng? result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddressPickerMapScreen(
+          initialLocation: _selectedDeliveryLocation,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedDeliveryLocation = result;
+      });
+      _getAddressFromLatLng(result);
+    }
+  }
+
+  // Convertir LatLng a Dirección (Reverse Geocoding)
+  Future<void> _getAddressFromLatLng(LatLng coords, {bool isDefault = false}) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        coords.latitude,
+        coords.longitude,
+      );
+      
+      if (placemarks.isNotEmpty) {
+        final Placemark p = placemarks.first;
+        final String address = "${p.street}, ${p.subLocality ?? ''}, ${p.locality ?? ''}, ${p.postalCode ?? ''}";
+        
+        setState(() {
+          _addressController.text = address;
+        });
+      }
+    } catch (e) {
+      setState(() {
+         _addressController.text = "Lat: ${coords.latitude.toStringAsFixed(4)}, Lng: ${coords.longitude.toStringAsFixed(4)}";
+      });
+    }
+  }
+
+  // Lógica para enviar el pedido (se queda igual)
   Future<void> _placeOrder(CartProvider cart) async {
     if (_isProcessing || cart.items.isEmpty) return;
-
     setState(() => _isProcessing = true);
 
-    // *************************************************************
-    // ** USAMOS EL USERNAME RECIBIDO Y UN ID TEMPORAL/ESTÁTICO **
-    // *************************************************************
-    // Usamos el username real para el campo 'username' en Firestore
-    final String currentUsername = widget.username;
-    // Como no tenemos UID de Firebase Auth, usamos un ID genérico
-    const String currentUserId = 'ID_DEL_USUARIO_ACTUAL'; 
+    const String currentUserId = 'ID_TEMPORAL'; // (Seguimos sin el UID real)
+    final String currentUsername = widget.username; 
+    
+    // **AÑADIMOS la dirección al pedido**
+    // (Asegúrate de que tu OrderService puede guardar 'deliveryAddress')
+    // Por ahora solo lo imprimimos, pero la lógica de guardado iría aquí.
+    final String deliveryAddress = _addressController.text;
 
     try {
       await _orderService.createOrder(
         userId: currentUserId,
-        username: currentUsername, // ¡Usamos el username!
+        username: currentUsername,
         cartItems: cart.items,
         totalAmount: cart.totalAmount,
+        // TODO: Modificar createOrder para que acepte la 'deliveryAddress'
       );
 
-      // Limpiar carrito tras el éxito
       cart.clearCart();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("¡Pedido enviado con éxito!")),
         );
-        // Volver a la lista de productos o a la home
         Navigator.of(context).popUntil((route) => route.isFirst); 
       }
     } catch (e) {
@@ -103,21 +154,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             
             const SizedBox(height: 30),
             
-            // Dirección de Entrega
+            // --- CAMPO DE DIRECCIÓN (MODIFICADO) ---
             const Text('Dirección de Entrega', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             TextField(
               controller: _addressController,
-              decoration: const InputDecoration(
-                labelText: "Dirección",
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: "Dirección seleccionada",
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.map_search),
+                  onPressed: _openMapSelector,
+                  tooltip: "Seleccionar en el mapa",
+                ),
               ),
               maxLines: 2,
+              readOnly: true, 
+              onTap: _openMapSelector,
             ),
             
             const SizedBox(height: 40),
 
-            // Botón de Confirmar
+            // --- ¡EL BOTÓN QUE FALTABA! ---
             ElevatedButton.icon(
               onPressed: cart.items.isEmpty || _isProcessing
                   ? null
