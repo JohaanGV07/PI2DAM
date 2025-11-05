@@ -2,11 +2,16 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_firestore_login/manage_products_screen.dart';
-import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
-import 'package:flutter_firestore_login/contact_map_screen.dart';
-import 'login_page.dart';
+
 import 'admin_page.dart';
+import 'login_page.dart';
+import 'contact_map_screen.dart';
+
+// Importaciones de Features (Carpetas)
+import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
+import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart'; // <-- Importación necesaria para Mis Pedidos
+import 'package:flutter_firestore_login/manage_products_screen.dart';
+
 
 class HomePage extends StatefulWidget {
   final String username;
@@ -34,6 +39,7 @@ class _HomePageState extends State<HomePage> {
     _currentImageURL = widget.imageURL;
   }
 
+  // Lógica de cambio de imagen (se mantiene igual)
   Future<void> _cambiarImagen() async {
     final newURL = _imageURLController.text.trim();
     if (newURL.isEmpty) return;
@@ -55,16 +61,14 @@ class _HomePageState extends State<HomePage> {
           _currentImageURL = newURL;
         });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Imagen actualizada")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Imagen actualizada")));
 
         _imageURLController.clear();
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error al actualizar imagen: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error al actualizar imagen: $e")));
     }
   }
 
@@ -96,10 +100,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- Lógica de Logout ---
-  // (La añadimos aquí para que el botón funcione)
+  // Lógica de Logout
   Future<void> _signOut(BuildContext context) async {
-    // Como no usamos Firebase Auth, solo navegamos al Login
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -116,68 +118,79 @@ class _HomePageState extends State<HomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => _signOut(context), // <--- Lógica de logout añadida
+            onPressed: () => _signOut(context),
           ),
         ],
       ),
-      // ...
-drawer: Drawer(
-    child: ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        UserAccountsDrawerHeader(
-          // ... (esto se queda igual)
-          accountName: Text(widget.username),
-          accountEmail: Text("Rol: ${widget.rol}"),
-          currentAccountPicture: CircleAvatar(
-            backgroundImage: NetworkImage(_currentImageURL),
-          ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            UserAccountsDrawerHeader(
+              accountName: Text(widget.username),
+              accountEmail: Text("Rol: ${widget.rol}"),
+              currentAccountPicture: CircleAvatar(
+                backgroundImage: NetworkImage(_currentImageURL),
+              ),
+              decoration: const BoxDecoration(color: Colors.blue),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Inicio (Perfil)'),
+              onTap: () => Navigator.pop(context),
+            ),
+            // *** NAVEGACIÓN CORREGIDA: VER CATÁLOGO ***
+            ListTile(
+              leading: const Icon(Icons.storefront),
+              title: const Text('Ver Catálogo'),
+              onTap: () {
+                Navigator.pop(context); // Cierra el drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductListScreen(
+                      username: widget.username, // <-- ¡Pasamos el username!
+                    ),
+                  ),
+                );
+              },
+            ),
+            // *** NAVEGACIÓN CORREGIDA: MIS PEDIDOS ***
+            ListTile(
+              leading: const Icon(Icons.receipt),
+              title: const Text('Mis Pedidos'),
+              onTap: () {
+                Navigator.pop(context); // Cierra el drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UserOrdersScreen(
+                      username: widget.username, // <-- ¡Pasamos el username!
+                    ),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.map),
+              title: const Text('Contacto y Ubicación'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ContactMapScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.exit_to_app),
+              title: const Text('Cerrar Sesión'),
+              onTap: () => _signOut(context),
+            ),
+          ],
         ),
-        ListTile(
-          leading: const Icon(Icons.home),
-          title: const Text('Inicio (Perfil)'), // <-- Texto cambiado
-          onTap: () => Navigator.pop(context),
-        ),
-        ListTile(
-          leading: const Icon(Icons.storefront), // <-- Icono cambiado
-          title: const Text('Ver Catálogo'), // <-- Ya funciona
-          onTap: () {
-            Navigator.pop(context); // Cierra el drawer
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ProductListScreen()),
-            );
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.receipt),
-          title: const Text('Mis Pedidos'),
-          onTap: () {
-            // TODO: Navegar a UserOrdersScreen
-            Navigator.pop(context);
-          },
-        ),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.map), // <-- Icono cambiado
-          title: const Text('Contacto y Ubicación'), // <-- Texto cambiado
-          onTap: () {
-            Navigator.pop(context); // Cierra el drawer
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ContactMapScreen()),
-            );
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.exit_to_app),
-          title: const Text('Cerrar Sesión'),
-          onTap: () => _signOut(context),
-        ),
-      ],
-    ),
-  ),
-// ...
+      ),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -200,18 +213,16 @@ drawer: Drawer(
               "Hola, ${widget.username}",
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
+            Text(
+              "Rol: ${widget.rol}",
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
             const SizedBox(height: 30),
 
-            // En lib/home_page.dart, dentro del body:
-
-            // ... (Después del saludo "Hola, ${widget.username}") ...
-            
-            const SizedBox(height: 30),
-
-            // Botones para redirigir si es admin
+            // Botones de Admin
             if (widget.rol == 'admin') ...[
               
-              // Botón 1 (El que ya tenías)
+              // Administrar Usuarios
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
@@ -224,18 +235,17 @@ drawer: Drawer(
                   );
                 },
                 icon: const Icon(Icons.admin_panel_settings),
-                label: const Text("Administrar Usuarios"), // Texto ajustado
+                label: const Text("Administrar Usuarios"),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(220, 48),
                 ),
               ),
 
-              const SizedBox(height: 10), // Espacio entre botones
+              const SizedBox(height: 10),
 
-              // Botón 2 (¡El nuevo!)
+              // Administrar Catálogo
               ElevatedButton.icon(
                 onPressed: () {
-                  // Importa 'manage_products_screen.dart' al inicio de tu home_page.dart
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -243,14 +253,13 @@ drawer: Drawer(
                     ),
                   );
                 },
-                icon: const Icon(Icons.coffee), // Icono de cafetería
+                icon: const Icon(Icons.coffee),
                 label: const Text("Administrar Catálogo"),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(220, 48),
                 ),
               ),
             ],
-// ...
           ],
         ),
       ),
