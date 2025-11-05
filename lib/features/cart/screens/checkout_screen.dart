@@ -163,7 +163,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 labelText: "Dirección seleccionada",
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.map_search),
+                  icon: const Icon(Icons.map),
                   onPressed: _openMapSelector,
                   tooltip: "Seleccionar en el mapa",
                 ),
