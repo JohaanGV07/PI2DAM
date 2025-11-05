@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'login_page.dart';
+import 'package:flutter_firestore_login/login_page.dart';
+
+// --- 1. Importa los paquetes necesarios ---
+import 'package:provider/provider.dart';
+import 'package:flutter_firestore_login/core/providers/cart_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +20,13 @@ void main() async {
     ),
   );
 
-  runApp(const MyApp());
+  // --- 2. Envuelve la App con el Provider ---
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => CartProvider(),
+      child: const MyApp(), // Tu app (MyApp) ahora es hija del Provider
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -26,7 +36,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Login con Firestore',
+      title: 'Gestor cafetería',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const LoginPage(),
     );

@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_firestore_login/manage_products_screen.dart';
+import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
+import 'package:flutter_firestore_login/contact_map_screen.dart';
 import 'login_page.dart';
 import 'admin_page.dart';
 
@@ -118,47 +120,64 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            UserAccountsDrawerHeader(
-              accountName: Text(widget.username),
-              accountEmail: Text("Rol: ${widget.rol}"),
-              currentAccountPicture: CircleAvatar(
-                backgroundImage: NetworkImage(_currentImageURL),
-              ),
-              decoration: const BoxDecoration(color: Colors.blue),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Inicio'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text('Ver Catálogo'), // Ajustado para la app
-              onTap: () {
-                // TODO: Navegar a ProductListScreen
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt),
-              title: const Text('Mis Pedidos'), // Ajustado para la app
-              onTap: () {
-                // TODO: Navegar a UserOrdersScreen
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.exit_to_app), // Icono cambiado
-              title: const Text('Cerrar Sesión'),
-              onTap: () => _signOut(context), // Lógica de logout añadida
-            ),
-          ],
+      // ...
+drawer: Drawer(
+    child: ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        UserAccountsDrawerHeader(
+          // ... (esto se queda igual)
+          accountName: Text(widget.username),
+          accountEmail: Text("Rol: ${widget.rol}"),
+          currentAccountPicture: CircleAvatar(
+            backgroundImage: NetworkImage(_currentImageURL),
+          ),
         ),
-      ),
+        ListTile(
+          leading: const Icon(Icons.home),
+          title: const Text('Inicio (Perfil)'), // <-- Texto cambiado
+          onTap: () => Navigator.pop(context),
+        ),
+        ListTile(
+          leading: const Icon(Icons.storefront), // <-- Icono cambiado
+          title: const Text('Ver Catálogo'), // <-- Ya funciona
+          onTap: () {
+            Navigator.pop(context); // Cierra el drawer
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProductListScreen()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.receipt),
+          title: const Text('Mis Pedidos'),
+          onTap: () {
+            // TODO: Navegar a UserOrdersScreen
+            Navigator.pop(context);
+          },
+        ),
+        const Divider(),
+        ListTile(
+          leading: const Icon(Icons.map), // <-- Icono cambiado
+          title: const Text('Contacto y Ubicación'), // <-- Texto cambiado
+          onTap: () {
+            Navigator.pop(context); // Cierra el drawer
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ContactMapScreen()),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.exit_to_app),
+          title: const Text('Cerrar Sesión'),
+          onTap: () => _signOut(context),
+        ),
+      ],
+    ),
+  ),
+// ...
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

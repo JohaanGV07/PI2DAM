@@ -12,6 +12,8 @@ dependencies:
   firebase_core: 
   cloud_firestore: 
   firebase_auth: 
+  flutter_map: ^8.2.2
+  provider: ^6.1.5+1
 
 
 dev_dependencies:
