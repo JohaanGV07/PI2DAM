@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
+import 'package:flutter_firestore_login/admin_dashboard_screen.dart';
 
 // Imports de pantallas principales
 import 'admin_page.dart';
@@ -11,7 +11,9 @@ import 'contact_map_screen.dart';
 import 'manage_products_screen.dart';
 import 'admin_manage_orders_screen.dart';
 
-// Imports de Features (Carpetas);
+
+// Imports de Features (Carpetas)
+import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
 import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart';
 
 // --- IMPORTS DEL CHAT ---
@@ -24,11 +26,16 @@ class HomePage extends StatefulWidget {
   final String imageURL;
   final String rol;
 
+  // *** IMPORTANTE: NECESITAREMOS EL USERID PARA EL SIGUIENTE EXTRA ***
+  // Por ahora, lo dejamos así, pero lo necesitaremos para Notificaciones Push.
+  // final String userId; 
+
   const HomePage({
     super.key,
     required this.username,
     required this.imageURL,
     required this.rol,
+    // required this.userId, 
   });
 
   @override
@@ -38,8 +45,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late String _currentImageURL;
   final TextEditingController _imageURLController = TextEditingController();
-
-  // Instancia del servicio de chat
   final ChatService _chatService = ChatService();
 
   @override
@@ -48,31 +53,21 @@ class _HomePageState extends State<HomePage> {
     _currentImageURL = widget.imageURL;
   }
 
-  // Lógica de cambio de imagen (se mantiene igual)
+  // (Lógica de _cambiarImagen, _mostrarDialogCambioImagen, y _signOut se mantiene igual)
   Future<void> _cambiarImagen() async {
     final newURL = _imageURLController.text.trim();
     if (newURL.isEmpty) return;
-
     try {
       final query = await FirebaseFirestore.instance
           .collection('users')
           .where('username', isEqualTo: widget.username)
-          .limit(1)
-          .get();
-
+          .limit(1).get();
       if (query.docs.isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(query.docs.first.id)
-            .update({'imageURL': newURL});
-
-        setState(() {
-          _currentImageURL = newURL;
-        });
-
+        await FirebaseFirestore.instance.collection('users')
+            .doc(query.docs.first.id).update({'imageURL': newURL});
+        setState(() { _currentImageURL = newURL; });
         ScaffoldMessenger.of(context,).showSnackBar(
             const SnackBar(content: Text("Imagen actualizada")));
-
         _imageURLController.clear();
       }
     } catch (e) {
@@ -88,9 +83,7 @@ class _HomePageState extends State<HomePage> {
         title: const Text("Actualizar imagen de perfil"),
         content: TextField(
           controller: _imageURLController,
-          decoration: const InputDecoration(
-            hintText: "Ingresa la URL de la nueva imagen",
-          ),
+          decoration: const InputDecoration(hintText: "Ingresa la URL de la nueva imagen"),
         ),
         actions: [
           TextButton(
@@ -108,8 +101,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  // Lógica de Logout
+  
   Future<void> _signOut(BuildContext context) async {
     Navigator.pushAndRemoveUntil(
       context,
@@ -152,7 +144,7 @@ class _HomePageState extends State<HomePage> {
               leading: const Icon(Icons.storefront),
               title: const Text('Ver Catálogo'),
               onTap: () {
-                Navigator.pop(context); // Cierra el drawer
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -167,7 +159,7 @@ class _HomePageState extends State<HomePage> {
               leading: const Icon(Icons.receipt),
               title: const Text('Mis Pedidos'),
               onTap: () {
-                Navigator.pop(context); // Cierra el drawer
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -190,17 +182,12 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
-            
-            // *** AÑADIDO: BOTÓN DE SOPORTE (CHAT) ***
             ListTile(
               leading: const Icon(Icons.chat_bubble_outline),
               title: const Text('Soporte (Chat)'),
               onTap: () async {
-                Navigator.pop(context); // Cierra el drawer
-                
-                // Busca o crea la sala de chat para este cliente
+                Navigator.pop(context);
                 final roomId = await _chatService.getOrCreateChatRoom(widget.username);
-                
                 if (mounted) {
                   Navigator.push(
                     context,
@@ -214,7 +201,6 @@ class _HomePageState extends State<HomePage> {
                 }
               },
             ),
-
             const Divider(),
             ListTile(
               leading: const Icon(Icons.exit_to_app),
@@ -225,12 +211,13 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       body: Center(
-        child: SingleChildScrollView( // <-- Añadido para evitar overflow
+        child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20.0), // Padding
+            padding: const EdgeInsets.symmetric(vertical: 20.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // (Avatar y Saludo se quedan igual)
                 GestureDetector(
                   onTap: _mostrarDialogCambioImagen,
                   child: CircleAvatar(
@@ -258,6 +245,28 @@ class _HomePageState extends State<HomePage> {
                 // Botones de Admin
                 if (widget.rol == 'admin') ...[
                   
+                  // *** AÑADIDO: BOTÓN DE DASHBOARD ***
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminDashboardScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.dashboard, color: Colors.white),
+                    label: const Text("Ver Dashboard"),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(220, 48),
+                      backgroundColor: Colors.indigo, // Color principal
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 10),
+
+                  // (El resto de botones se mantiene igual)
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -317,8 +326,7 @@ class _HomePageState extends State<HomePage> {
                   ),
 
                   const SizedBox(height: 10),
-
-                  // *** AÑADIDO: BOTÓN VER CHATS (ADMIN) ***
+                  
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -338,7 +346,6 @@ class _HomePageState extends State<HomePage> {
                       foregroundColor: Colors.white,
                     ),
                   ),
-
                 ],
               ],
             ),
