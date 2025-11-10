@@ -2,16 +2,22 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
 
+// Imports de pantallas principales
 import 'admin_page.dart';
 import 'login_page.dart';
 import 'contact_map_screen.dart';
+import 'manage_products_screen.dart';
+import 'admin_manage_orders_screen.dart';
 
-// Importaciones de Features (Carpetas)
-import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
-import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart'; // <-- Importación necesaria para Mis Pedidos
-import 'package:flutter_firestore_login/manage_products_screen.dart';
-import 'package:flutter_firestore_login/admin_manage_orders_screen.dart';
+// Imports de Features (Carpetas);
+import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart';
+
+// --- IMPORTS DEL CHAT ---
+import 'package:flutter_firestore_login/core/services/chat_service.dart';
+import 'package:flutter_firestore_login/chat_screen.dart';
+import 'package:flutter_firestore_login/admin_chat_list_screen.dart';
 
 class HomePage extends StatefulWidget {
   final String username;
@@ -32,6 +38,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late String _currentImageURL;
   final TextEditingController _imageURLController = TextEditingController();
+
+  // Instancia del servicio de chat
+  final ChatService _chatService = ChatService();
 
   @override
   void initState() {
@@ -61,16 +70,14 @@ class _HomePageState extends State<HomePage> {
           _currentImageURL = newURL;
         });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Imagen actualizada")));
+        ScaffoldMessenger.of(context,).showSnackBar(
+            const SnackBar(content: Text("Imagen actualizada")));
 
         _imageURLController.clear();
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error al actualizar imagen: $e")));
+      ScaffoldMessenger.of(context,).showSnackBar(
+          SnackBar(content: Text("Error al actualizar imagen: $e")));
     }
   }
 
@@ -141,7 +148,6 @@ class _HomePageState extends State<HomePage> {
               title: const Text('Inicio (Perfil)'),
               onTap: () => Navigator.pop(context),
             ),
-            // *** NAVEGACIÓN CORREGIDA: VER CATÁLOGO ***
             ListTile(
               leading: const Icon(Icons.storefront),
               title: const Text('Ver Catálogo'),
@@ -151,13 +157,12 @@ class _HomePageState extends State<HomePage> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => ProductListScreen(
-                      username: widget.username, // <-- ¡Pasamos el username!
+                      username: widget.username,
                     ),
                   ),
                 );
               },
             ),
-            // *** NAVEGACIÓN CORREGIDA: MIS PEDIDOS ***
             ListTile(
               leading: const Icon(Icons.receipt),
               title: const Text('Mis Pedidos'),
@@ -167,7 +172,7 @@ class _HomePageState extends State<HomePage> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => UserOrdersScreen(
-                      username: widget.username, // <-- ¡Pasamos el username!
+                      username: widget.username,
                     ),
                   ),
                 );
@@ -185,6 +190,32 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+            
+            // *** AÑADIDO: BOTÓN DE SOPORTE (CHAT) ***
+            ListTile(
+              leading: const Icon(Icons.chat_bubble_outline),
+              title: const Text('Soporte (Chat)'),
+              onTap: () async {
+                Navigator.pop(context); // Cierra el drawer
+                
+                // Busca o crea la sala de chat para este cliente
+                final roomId = await _chatService.getOrCreateChatRoom(widget.username);
+                
+                if (mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        roomId: roomId,
+                        currentUsername: widget.username,
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.exit_to_app),
               title: const Text('Cerrar Sesión'),
@@ -194,97 +225,124 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GestureDetector(
-              onTap: _mostrarDialogCambioImagen,
-              child: CircleAvatar(
-                radius: 60,
-                backgroundImage: NetworkImage(_currentImageURL),
-                backgroundColor: Colors.grey.shade200,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "Toca la imagen para cambiarla",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              "Hola, ${widget.username}",
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              "Rol: ${widget.rol}",
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 30),
-
-            // Botones de Admin
-            if (widget.rol == 'admin') ...[
-              // Botón 1: Administrar Usuarios (ya lo tienes)
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          AdminPage(currentAdminUsername: widget.username),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.admin_panel_settings),
-                label: const Text("Administrar Usuarios"),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(220, 48),
+        child: SingleChildScrollView( // <-- Añadido para evitar overflow
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20.0), // Padding
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: _mostrarDialogCambioImagen,
+                  child: CircleAvatar(
+                    radius: 60,
+                    backgroundImage: NetworkImage(_currentImageURL),
+                    backgroundColor: Colors.grey.shade200,
+                  ),
                 ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // Botón 2: Administrar Catálogo (ya lo tienes)
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ManageProductsScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.coffee),
-                label: const Text("Administrar Catálogo"),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(220, 48),
+                const SizedBox(height: 10),
+                const Text(
+                  "Toca la imagen para cambiarla",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-              ),
-
-              const SizedBox(height: 10), // Espacio
-              // *** BOTÓN 3: GESTIONAR PEDIDOS (EL NUEVO) ***
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AdminManageOrdersScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(
-                  Icons.receipt_long,
-                  color: Colors.white,
-                ), // Icono de pedidos
-                label: const Text("Gestionar Pedidos"),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(220, 48),
-                  backgroundColor:
-                      Colors.teal, // Color diferente para distinguirlo
-                  foregroundColor: Colors.white,
+                const SizedBox(height: 20),
+                Text(
+                  "Hola, ${widget.username}",
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
-              ),
-            ],
-          ],
+                Text(
+                  "Rol: ${widget.rol}",
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+                const SizedBox(height: 30),
+
+                // Botones de Admin
+                if (widget.rol == 'admin') ...[
+                  
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AdminPage(currentAdminUsername: widget.username),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.admin_panel_settings),
+                    label: const Text("Administrar Usuarios"),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(220, 48),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ManageProductsScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.coffee),
+                    label: const Text("Administrar Catálogo"),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(220, 48),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+                  
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminManageOrdersScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.receipt_long,
+                      color: Colors.white,
+                    ),
+                    label: const Text("Gestionar Pedidos"),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(220, 48),
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // *** AÑADIDO: BOTÓN VER CHATS (ADMIN) ***
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AdminChatListScreen(
+                            adminUsername: widget.username,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.forum, color: Colors.white),
+                    label: const Text("Ver Chats de Clientes"),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(220, 48),
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
