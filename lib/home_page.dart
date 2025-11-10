@@ -11,7 +11,7 @@ import 'contact_map_screen.dart';
 import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
 import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart'; // <-- Importación necesaria para Mis Pedidos
 import 'package:flutter_firestore_login/manage_products_screen.dart';
-
+import 'package:flutter_firestore_login/admin_manage_orders_screen.dart';
 
 class HomePage extends StatefulWidget {
   final String username;
@@ -61,14 +61,16 @@ class _HomePageState extends State<HomePage> {
           _currentImageURL = newURL;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Imagen actualizada")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Imagen actualizada")));
 
         _imageURLController.clear();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error al actualizar imagen: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error al actualizar imagen: $e")));
     }
   }
 
@@ -221,16 +223,14 @@ class _HomePageState extends State<HomePage> {
 
             // Botones de Admin
             if (widget.rol == 'admin') ...[
-              
-              // Administrar Usuarios
+              // Botón 1: Administrar Usuarios (ya lo tienes)
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AdminPage(
-                        currentAdminUsername: widget.username,
-                      ),
+                      builder: (_) =>
+                          AdminPage(currentAdminUsername: widget.username),
                     ),
                   );
                 },
@@ -243,7 +243,7 @@ class _HomePageState extends State<HomePage> {
 
               const SizedBox(height: 10),
 
-              // Administrar Catálogo
+              // Botón 2: Administrar Catálogo (ya lo tienes)
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
@@ -257,6 +257,30 @@ class _HomePageState extends State<HomePage> {
                 label: const Text("Administrar Catálogo"),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(220, 48),
+                ),
+              ),
+
+              const SizedBox(height: 10), // Espacio
+              // *** BOTÓN 3: GESTIONAR PEDIDOS (EL NUEVO) ***
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminManageOrdersScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.receipt_long,
+                  color: Colors.white,
+                ), // Icono de pedidos
+                label: const Text("Gestionar Pedidos"),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(220, 48),
+                  backgroundColor:
+                      Colors.teal, // Color diferente para distinguirlo
+                  foregroundColor: Colors.white,
                 ),
               ),
             ],
