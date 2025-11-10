@@ -5,17 +5,19 @@ import 'package:provider/provider.dart';
 import 'package:flutter_firestore_login/core/providers/cart_provider.dart';
 import 'package:flutter_firestore_login/features/cart/screens/checkout_screen.dart';
 
-import '../../../core/models/product_model.dart';
+import '../../../core/models/product_model.dart'; // Asegúrate de que esta ruta es correcta
 
 class CartScreen extends StatelessWidget {
+  // *** 1. AÑADIMOS EL USERNAME ***
   final String username;
-  const CartScreen({super.key, required this.username});
+  
+  const CartScreen({
+    super.key,
+    required this.username, // Hacemos que sea obligatorio
+  });
 
   @override
   Widget build(BuildContext context) {
-    // 1. Obtenemos la instancia del CartProvider
-    // Esta vez 'listen' es true (por defecto) porque queremos que la UI
-    // se reconstruya si el carrito cambia.
     final cart = Provider.of<CartProvider>(context);
 
     return Scaffold(
@@ -26,7 +28,7 @@ class CartScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.delete_sweep),
             onPressed: () {
-              // Mostramos un diálogo de confirmación
+              // (La lógica del diálogo de confirmación se queda igual)
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
@@ -56,7 +58,7 @@ class CartScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // 2. Panel Superior con el Total
+          // Panel Superior con el Total
           Card(
             margin: const EdgeInsets.all(15),
             elevation: 4,
@@ -69,7 +71,7 @@ class CartScreen extends StatelessWidget {
                     'Total',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  const Spacer(), // Ocupa el espacio
+                  const Spacer(),
                   Chip(
                     label: Text(
                       '${cart.totalAmount.toStringAsFixed(2)} €',
@@ -81,29 +83,29 @@ class CartScreen extends StatelessWidget {
                     backgroundColor: Theme.of(context).primaryColor,
                   ),
                   const SizedBox(width: 10),
-                  // ... dentro del Row del Total en cart_screen.dart
+                  
+                  // *** 2. BOTÓN "PEDIR AHORA" ACTUALIZADO ***
                   ElevatedButton(
                     onPressed: (cart.items.isEmpty)
                         ? null
                         : () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => CheckoutScreen(
-                                    username: username, // ¡Pasamos el username!
-                                  ),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CheckoutScreen(
+                                  username: username, // <-- ¡Pasamos el username!
                                 ),
-                              );
-                            },
+                              ),
+                            );
+                          },
                     child: const Text('PEDIR AHORA'),
                   ),
-                  // ...
                 ],
               ),
             ),
           ),
 
-          // 3. Lista de productos en el carrito
+          // Lista de productos en el carrito
           Expanded(
             child: cart.items.isEmpty
                 ? const Center(
@@ -125,6 +127,7 @@ class CartScreen extends StatelessWidget {
 
 // -----------------------------------------------------------------
 // Widget interno para mostrar cada ítem del carrito
+// (Esta parte se queda exactamente igual)
 // -----------------------------------------------------------------
 class CartListItem extends StatelessWidget {
   final CartItem item;
@@ -133,10 +136,8 @@ class CartListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Usamos Provider.of (listen: false) para llamar a las funciones
     final cart = Provider.of<CartProvider>(context, listen: false);
 
-    // Dismissible permite deslizar para borrar
     return Dismissible(
       key: ValueKey(item.id),
       direction: DismissDirection.endToStart,
@@ -148,7 +149,6 @@ class CartListItem extends StatelessWidget {
         child: const Icon(Icons.delete, color: Colors.white, size: 30),
       ),
       onDismissed: (direction) {
-        // Llama a la función de eliminar completo
         cart.removeItem(item.id);
       },
       child: Card(
@@ -172,30 +172,26 @@ class CartListItem extends StatelessWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Botón de restar
                 IconButton(
                   icon: const Icon(Icons.remove),
                   onPressed: () {
                     cart.removeSingleItem(item.id);
                   },
                 ),
-                Text('${item.quantity} x'), // Cantidad
-                // Botón de sumar
+                Text('${item.quantity} x'),
                 IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: () {
-                    // Para añadir, simulamos que añadimos el producto de nuevo
-                    // (Necesitamos el producto original, pero esto es un atajo)
-                    // Lo ideal sería pasar el ProductModel al CartItem
                     cart.addItem(
                       ProductModel(
                         id: item.id,
                         name: item.name,
-                        description: '', // No la necesitamos aquí
+                        description: '',
                         price: item.price,
-                        imageUrl: '', // No la necesitamos aquí
-                        category: '', // No la necesitamos aquí
+                        imageUrl: '',
+                        category: '',
                         isAvailable: true,
+                        isFeatured: false, // Añadido para que coincida con el modelo
                       ),
                     );
                   },

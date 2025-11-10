@@ -71,18 +71,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Nuestro Catálogo"),
-        // Eliminamos el actions aquí, la funcionalidad va al FloatingActionButton
+        // El actions de la AppBar se elimina, usamos el FAB
       ),
       
       body: Column(
         children: [
-          _buildFilterSortPanel(), // Panel de filtros (se queda igual)
+          _buildFilterSortPanel(), // Panel de filtros
           
           Expanded(
             child: StreamBuilder<List<ProductModel>>(
               stream: _productService.getProductsStream(),
               builder: (context, snapshot) {
-                // (Lógica del StreamBuilder se mantiene igual)
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -93,21 +92,58 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   return Center(child: Text("Error: ${snapshot.error}"));
                 }
 
+                // Aplicamos filtros y ordenación
                 final processedProducts = _filterAndSortProducts(snapshot.data!);
+                
+                // *** 1. SEPARAMOS DESTACADOS DEL RESTO ***
+                final featuredProducts = processedProducts.where((p) => p.isFeatured).toList();
+                final regularProducts = processedProducts.where((p) => !p.isFeatured).toList();
 
                 if (processedProducts.isEmpty) {
                   return const Center(child: Text("No hay productos que coincidan con los filtros."));
                 }
 
-                return ListView.builder(
-                  itemCount: processedProducts.length,
-                  itemBuilder: (context, index) {
-                    final product = processedProducts[index];
-                    return ProductCard(
-                      product: product,
-                      onAddToCart: () => _onAddToCart(product),
-                    );
-                  },
+                // *** 2. USAMOS LISTVIEW PARA MOSTRAR SECCIONES ***
+                return ListView(
+                  children: [
+                    // --- SECCIÓN DE DESTACADOS ---
+                    if (featuredProducts.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Text(
+                          "⭐️ Productos Destacados",
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      // Creamos la lista de destacados
+                      ...featuredProducts.map((product) {
+                        return ProductCard(
+                          product: product,
+                          onAddToCart: () => _onAddToCart(product),
+                        );
+                      }).toList(),
+                      const Divider(thickness: 2, height: 20, indent: 16, endIndent: 16),
+                    ],
+
+                    // --- SECCIÓN NORMAL ---
+                    // Añadimos un título si también hay destacados
+                    if (featuredProducts.isNotEmpty && regularProducts.isNotEmpty)
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        child: Text(
+                          "Menú Completo",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    
+                    // Creamos la lista de regulares
+                    ...regularProducts.map((product) {
+                      return ProductCard(
+                        product: product,
+                        onAddToCart: () => _onAddToCart(product),
+                      );
+                    }).toList(),
+                  ],
                 );
               },
             ),
@@ -115,9 +151,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ],
       ),
 
-      // **********************************************
-      // *** AÑADIDO: FLOATING ACTION BUTTON CON CONTADOR ***
-      // **********************************************
+      // El FloatingActionButton se mantiene igual
       floatingActionButton: Consumer<CartProvider>(
         builder: (context, cartProvider, child) {
           final itemCount = cartProvider.itemCount; 
@@ -128,7 +162,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => CartScreen(
-                    username: widget.username, // <--- Pasamos el username
+                    username: widget.username,
                   ),
                 ),
               );
@@ -169,7 +203,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
           );
         },
       ),
-      // **********************************************
     );
   }
 
