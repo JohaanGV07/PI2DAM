@@ -8,12 +8,11 @@ import 'package:flutter_firestore_login/features/cart/screens/checkout_screen.da
 import '../../../core/models/product_model.dart'; // Asegúrate de que esta ruta es correcta
 
 class CartScreen extends StatelessWidget {
-  // *** 1. AÑADIMOS EL USERNAME ***
   final String username;
   
   const CartScreen({
     super.key,
-    required this.username, // Hacemos que sea obligatorio
+    required this.username,
   });
 
   @override
@@ -84,7 +83,6 @@ class CartScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   
-                  // *** 2. BOTÓN "PEDIR AHORA" ACTUALIZADO ***
                   ElevatedButton(
                     onPressed: (cart.items.isEmpty)
                         ? null
@@ -93,7 +91,7 @@ class CartScreen extends StatelessWidget {
                               context,
                               MaterialPageRoute(
                                 builder: (_) => CheckoutScreen(
-                                  username: username, // <-- ¡Pasamos el username!
+                                  username: username,
                                 ),
                               ),
                             );
@@ -127,7 +125,6 @@ class CartScreen extends StatelessWidget {
 
 // -----------------------------------------------------------------
 // Widget interno para mostrar cada ítem del carrito
-// (Esta parte se queda exactamente igual)
 // -----------------------------------------------------------------
 class CartListItem extends StatelessWidget {
   final CartItem item;
@@ -182,6 +179,9 @@ class CartListItem extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: () {
+                    
+                    // *** ¡AQUÍ ESTÁ LA CORRECCIÓN! ***
+                    // Añadimos los campos que faltaban
                     cart.addItem(
                       ProductModel(
                         id: item.id,
@@ -191,7 +191,9 @@ class CartListItem extends StatelessWidget {
                         imageUrl: '',
                         category: '',
                         isAvailable: true,
-                        isFeatured: false, // Añadido para que coincida con el modelo
+                        isFeatured: false,
+                        ratingAvg: 0.0, // <-- Faltaba este
+                        ratingCount: 0,   // <-- Faltaba este
                       ),
                     );
                   },

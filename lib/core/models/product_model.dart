@@ -8,7 +8,11 @@ class ProductModel {
   final String imageUrl;
   final String category;
   final bool isAvailable;
-  final bool isFeatured; // <-- 1. AÑADE ESTE CAMPO
+  final bool isFeatured;
+  
+  // --- 1. CAMPOS NUEVOS ---
+  final double ratingAvg;
+  final int ratingCount;
 
   ProductModel({
     required this.id,
@@ -18,7 +22,9 @@ class ProductModel {
     required this.imageUrl,
     required this.category,
     required this.isAvailable,
-    required this.isFeatured, // <-- 2. AÑADE AL CONSTRUCTOR
+    required this.isFeatured,
+    required this.ratingAvg,   // <-- 2. AÑADE AL CONSTRUCTOR
+    required this.ratingCount, // <-- 2. AÑADE AL CONSTRUCTOR
   });
 
   // Método de fábrica
@@ -31,7 +37,9 @@ class ProductModel {
       imageUrl: data['imageUrl'] ?? 'https://picsum.photos/200/200',
       category: data['category'] ?? 'General',
       isAvailable: data['isAvailable'] ?? true,
-      isFeatured: data['isFeatured'] ?? false, // <-- 3. AÑADE (por defecto false)
+      isFeatured: data['isFeatured'] ?? false,
+      ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(), // <-- 3. AÑADE (por defecto 0.0)
+      ratingCount: data['ratingCount'] ?? 0,         // <-- 3. AÑADE (por defecto 0)
     );
   }
 
@@ -44,7 +52,9 @@ class ProductModel {
       'imageUrl': imageUrl,
       'category': category,
       'isAvailable': isAvailable,
-      'isFeatured': isFeatured, // <-- 4. AÑADE PARA GUARDAR EN FIRESTORE
+      'isFeatured': isFeatured,
+      'ratingAvg': ratingAvg,     // <-- 4. AÑADE PARA GUARDAR
+      'ratingCount': ratingCount, // <-- 4. AÑADE PARA GUARDAR
     };
   }
 }
