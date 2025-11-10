@@ -22,20 +22,18 @@ import 'package:flutter_firestore_login/chat_screen.dart';
 import 'package:flutter_firestore_login/admin_chat_list_screen.dart';
 
 class HomePage extends StatefulWidget {
+  // *** 1. AÑADE EL USERID ***
+  final String userId;
   final String username;
   final String imageURL;
   final String rol;
 
-  // *** IMPORTANTE: NECESITAREMOS EL USERID PARA EL SIGUIENTE EXTRA ***
-  // Por ahora, lo dejamos así, pero lo necesitaremos para Notificaciones Push.
-  // final String userId; 
-
   const HomePage({
     super.key,
+    required this.userId, // <-- 2. HAZLO OBLIGATORIO
     required this.username,
     required this.imageURL,
     required this.rol,
-    // required this.userId, 
   });
 
   @override

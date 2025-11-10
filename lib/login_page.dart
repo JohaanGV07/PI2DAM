@@ -3,7 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_page.dart';
-import 'register_page.dart'; // <-- 1. Importa la nueva página
+import 'register_page.dart';
+// 1. Importa el nuevo servicio de Google
+import 'package:flutter_firestore_login/core/services/google_auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,19 +20,18 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // 2. Instancia el servicio de Google
+  final GoogleAuthService _googleAuthService = GoogleAuthService();
+
   Future<void> _login() async {
+    // ... (la lógica de campos vacíos se queda igual)
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
-
     if (username.isEmpty || password.isEmpty) {
       setState(() => _errorMessage = "Por favor completa todos los campos");
       return;
     }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() { _isLoading = true; _errorMessage = null; });
 
     try {
       final query = await FirebaseFirestore.instance
@@ -42,13 +43,18 @@ class _LoginPageState extends State<LoginPage> {
       if (query.docs.isEmpty) {
         setState(() => _errorMessage = "Usuario no encontrado");
       } else {
-        final userData = query.docs.first.data();
+        // *** 3. CORRECCIÓN DEL LOGIN MANUAL ***
+        final userDoc = query.docs.first;
+        final userData = userDoc.data();
+        final String userId = userDoc.id; // <-- ¡Capturamos el ID!
+
         if (userData['password'] == password) {
           // Login exitoso
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => HomePage(
+                userId: userId, // <-- ¡Pasamos el ID!
                 username: userData['username'],
                 imageURL: userData['imageURL'],
                 rol: userData['rol'],
@@ -66,7 +72,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // --- 2. Función para navegar a la página de registro ---
   void _navigateToRegister() {
     Navigator.push(
       context,
@@ -74,8 +79,24 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // 4. Función para el botón de Google (llama al nuevo servicio)
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    await _googleAuthService.signInWithGoogle(context);
+
+    if (mounted) {
+      setState(() { _isLoading = false; });
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
+    // ... (Tu build se queda igual, excepto el botón de Google) ...
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: Center(
@@ -122,11 +143,23 @@ class _LoginPageState extends State<LoginPage> {
                         ? const CircularProgressIndicator(color: Colors.white)
                         : const Text("Entrar"),
                   ),
-                  
-                  // --- 3. Botón para ir a Registrarse ---
+                  const SizedBox(height: 15),
+                  const Text("O conéctate con:"),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    // (Asumo que ya tienes el logo en 'assets/google_logo.png')
+                    icon: Image.asset('assets/google_logo.png', height: 24.0), 
+                    label: const Text("Google"),
+                    onPressed: _isLoading ? null : _loginWithGoogle, // <-- Llama a la nueva función
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
+                  ),
                   const SizedBox(height: 20),
                   TextButton(
-                    onPressed: _navigateToRegister,
+                    onPressed: _isLoading ? null : _navigateToRegister,
                     child: const Text("¿No tienes cuenta? Regístrate aquí"),
                   )
                 ],
