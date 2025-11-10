@@ -3,10 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Asegúrate de que estos imports son correctos
+// Asegúrate de que estas rutas de import son correctas
 import 'package:flutter_firestore_login/core/services/order_service.dart';
 import 'package:flutter_firestore_login/shared/widgets/add_review_dialog.dart';
-
 
 class UserOrdersScreen extends StatelessWidget {
   final String username;
@@ -14,9 +13,6 @@ class UserOrdersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // El OrderService no es necesario aquí si solo leemos
-    // final OrderService _orderService = OrderService();
-
     return Scaffold(
       appBar: AppBar(title: const Text("Mis Pedidos")),
       body: StreamBuilder<QuerySnapshot>(
@@ -51,39 +47,44 @@ class UserOrdersScreen extends StatelessWidget {
               final date = timestamp?.toDate();
               final dateString = date != null ? '${date.day}/${date.month} ${date.hour}:${date.minute.toString().padLeft(2, '0')}' : 'Fecha N/A';
 
-              // *** ¡AQUÍ ESTÁ LA LÓGICA CLAVE! ***
-              // Usamos un ExpansionTile para mostrar los productos dentro
+              // *** ¡AQUÍ ESTÁ LA LÓGICA NUEVA! ***
+              // 1. Decidimos si el tile debe ser expandible
+              final bool isExpandable = (status == 'Listo' || status == 'Entregado');
+              
+              // 2. Definimos los widgets comunes
+              final leadingIcon = CircleAvatar(
+                backgroundColor: _getStatusColor(status),
+                child: Text((orders.length - index).toString()), // Numeración
+              );
+              final titleText = Text("Pedido del $dateString");
+              final subtitleText = Text("Total: ${total.toStringAsFixed(2)} €");
+              final trailingChip = Chip(
+                label: Text(status),
+                backgroundColor: _getStatusColor(status),
+                labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              );
+
+              // 3. Devolvemos el widget apropiado
               return Card(
                 elevation: 2,
                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                child: ExpansionTile(
-                  leading: CircleAvatar(
-                    backgroundColor: _getStatusColor(status),
-                    child: Text((orders.length - index).toString()), // Numeración
-                  ),
-                  title: Text("Pedido del $dateString"),
-                  subtitle: Text("Total: ${total.toStringAsFixed(2)} €"),
-                  trailing: Chip(
-                    label: Text(status),
-                    backgroundColor: _getStatusColor(status),
-                    labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                  
-                  // --- ESTO SE MUESTRA AL EXPANDIR ---
-                  children: [
-                    // Mostramos los productos del pedido
-                    ...(orderData['items'] as List<dynamic>).map((item) {
-                      final itemData = item as Map<String, dynamic>;
-                      return ListTile(
-                        dense: true, // Más compacto
-                        leading: const Icon(Icons.shopping_basket_outlined),
-                        title: Text(itemData['name'] ?? 'Producto'),
-                        subtitle: Text("${itemData['quantity']} x ${itemData['price']?.toStringAsFixed(2)}€"),
-                        
-                        // *** ¡EL BOTÓN DE VALORAR! ***
-                        // Se muestra solo si el estado es el correcto
-                        trailing: (status == 'Listo' || status == 'Entregado')
-                            ? TextButton(
+                child: isExpandable
+                    // SI ESTÁ LISTO: Devolvemos el ExpansionTile
+                    ? ExpansionTile(
+                        leading: leadingIcon,
+                        title: titleText,
+                        subtitle: subtitleText,
+                        trailing: trailingChip,
+                        children: [
+                          // Mostramos los productos del pedido
+                          ...(orderData['items'] as List<dynamic>).map((item) {
+                            final itemData = item as Map<String, dynamic>;
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.shopping_basket_outlined),
+                              title: Text(itemData['name'] ?? 'Producto'),
+                              subtitle: Text("${itemData['quantity']} x ${itemData['price']?.toStringAsFixed(2)}€"),
+                              trailing: TextButton(
                                 style: TextButton.styleFrom(
                                   backgroundColor: Colors.amber.shade100,
                                 ),
@@ -92,18 +93,24 @@ class UserOrdersScreen extends StatelessWidget {
                                   showDialog(
                                     context: context,
                                     builder: (_) => AddReviewDialog(
-                                      // Pasamos el ID del producto (no del pedido)
                                       productId: itemData['id'],
                                       username: username,
                                     ),
                                   );
                                 },
-                              )
-                            : null, // Si no está listo, no muestra nada
-                      );
-                    }).toList(),
-                  ],
-                ),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      )
+                    // SI ESTÁ PENDIENTE: Devolvemos un ListTile normal (no expandible)
+                    : ListTile(
+                        leading: leadingIcon,
+                        title: titleText,
+                        subtitle: subtitleText,
+                        trailing: trailingChip,
+                        // Sin 'onTap' ni 'children', no hará nada al pulsarlo
+                      ),
               );
             },
           );
@@ -112,21 +119,15 @@ class UserOrdersScreen extends StatelessWidget {
     );
   }
   
-  // Función de ayuda para dar color al estado
+  // (La función _getStatusColor se queda igual)
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'Pendiente':
-        return Colors.orange;
-      case 'En Preparación':
-        return Colors.blue; // (Lo cambié de naranja a azul para diferenciar)
-      case 'Listo':
-        return Colors.green;
-      case 'Entregado':
-        return Colors.green.shade700;
-      case 'Cancelado':
-        return Colors.red;
-      default:
-        return Colors.grey;
+      case 'Pendiente': return Colors.orange;
+      case 'En Preparación': return Colors.blue; 
+      case 'Listo': return Colors.green;
+      case 'Entregado': return Colors.green.shade700;
+      case 'Cancelado': return Colors.red;
+      default: return Colors.grey;
     }
   }
 }
