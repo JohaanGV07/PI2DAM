@@ -15,14 +15,40 @@ class ManageProductsScreen extends StatefulWidget {
 class _ManageProductsScreenState extends State<ManageProductsScreen> {
   final ProductService _productService = ProductService();
 
+  // Controladores del formulario
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _imageUrlController = TextEditingController();
   final TextEditingController _categoryController = TextEditingController();
-  
   bool _isFeatured = false; 
 
+  // --- 1. CONTROLADOR PARA LA BÚSQUEDA ---
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    _priceController.dispose();
+    _imageUrlController.dispose();
+    _categoryController.dispose();
+    _searchController.dispose(); // <-- No olvides el dispose
+    super.dispose();
+  }
+
+  // (Las funciones _addProduct, _deleteProduct y _showEditProductDialog se mantienen exactamente igual)
   Future<void> _addProduct() async {
     final name = _nameController.text.trim();
     final description = _descController.text.trim();
@@ -37,7 +63,6 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       return;
     }
 
-    // *** ACTUALIZACIÓN: Añade los campos de valoración por defecto ***
     final newProduct = ProductModel(
       id: 'temp',
       name: name,
@@ -47,8 +72,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       category: category,
       isAvailable: true,
       isFeatured: _isFeatured,
-      ratingAvg: 0.0, // Valor por defecto
-      ratingCount: 0,   // Valor por defecto
+      ratingAvg: 0.0,
+      ratingCount: 0,
     );
 
     try {
@@ -119,7 +144,6 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                         });
                       },
                     ),
-                    // Mostramos la valoración, pero no dejamos editarla
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
@@ -137,7 +161,6 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    // *** ACTUALIZACIÓN: Aseguramos que los campos de valoración se mantengan ***
                     final updatedProduct = ProductModel(
                       id: product.id,
                       name: nameEditController.text,
@@ -147,7 +170,6 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                       imageUrl: imageUrlEditController.text,
                       isFeatured: isFeaturedEdit,
                       isAvailable: product.isAvailable,
-                      // Mantenemos las valoraciones existentes
                       ratingAvg: product.ratingAvg,
                       ratingCount: product.ratingCount,
                     );
@@ -176,99 +198,178 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     );
   }
 
+  // --- WIDGET BUILD PRINCIPAL ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Administrar Catálogo")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView( 
-          child: Column(
-            children: [
-              // ... (Formulario de Nuevo Producto) ...
-              TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Nombre Producto")),
-              TextField(controller: _descController, decoration: const InputDecoration(labelText: "Descripción")),
-              TextField(controller: _priceController, decoration: const InputDecoration(labelText: "Precio (ej: 2.50)"), keyboardType: TextInputType.number),
-              TextField(controller: _categoryController, decoration: const InputDecoration(labelText: "Categoría (ej: Bebidas)")),
-              TextField(controller: _imageUrlController, decoration: const InputDecoration(labelText: "URL de la Imagen (Opcional)")),
-              SwitchListTile(
-                title: const Text("¿Es Producto Destacado?"),
-                value: _isFeatured,
-                onChanged: (bool value) {
-                  setState(() { _isFeatured = value; });
-                },
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 720) {
+            // --- VISTA MÓVIL (Estrecha) ---
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  SingleChildScrollView( 
+                    child: _buildProductForm(),
+                  ),
+                  const SizedBox(height: 20),
+                  const Divider(),
+                  _buildProductList(), // La lista (que es Expanded)
+                ],
               ),
-              const SizedBox(height: 15),
-              ElevatedButton(
-                onPressed: _addProduct,
-                child: const Text("Agregar Producto"),
+            );
+          } else {
+            // --- VISTA DESKTOP (Ancha) ---
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: SingleChildScrollView(
+                      child: _buildProductForm(),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: _buildProductList(), // <-- Lista a la derecha
+                  ),
+                ],
               ),
-              
-              const SizedBox(height: 20),
-              const Text("Catálogo Actual", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(
-                height: 400,
-                child: StreamBuilder<List<ProductModel>>(
-                  stream: _productService.getProductsStream(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const Center(child: Text("No hay productos en el catálogo."));
-                    }
-                    if (snapshot.hasError) {
-                      return Center(child: Text("Error: ${snapshot.error}"));
-                    }
+            );
+          }
+        },
+      ),
+    );
+  }
 
-                    final products = snapshot.data!;
+  // --- WIDGET FORMULARIO (Se queda igual) ---
+  Widget _buildProductForm() {
+    return Column(
+      children: [
+        const Text("Agregar Producto", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Nombre Producto")),
+        TextField(controller: _descController, decoration: const InputDecoration(labelText: "Descripción")),
+        TextField(controller: _priceController, decoration: const InputDecoration(labelText: "Precio (ej: 2.50)"), keyboardType: TextInputType.number),
+        TextField(controller: _categoryController, decoration: const InputDecoration(labelText: "Categoría (ej: Bebidas)")),
+        TextField(controller: _imageUrlController, decoration: const InputDecoration(labelText: "URL de la Imagen (Opcional)")),
+        SwitchListTile(
+          title: const Text("¿Es Producto Destacado?"),
+          value: _isFeatured,
+          onChanged: (bool value) {
+            setState(() { _isFeatured = value; });
+          },
+        ),
+        const SizedBox(height: 15),
+        ElevatedButton(
+          onPressed: _addProduct,
+          child: const Text("Agregar Producto"),
+        ),
+      ],
+    );
+  }
 
-                    return ListView.builder(
-                      itemCount: products.length,
-                      itemBuilder: (context, index) {
-                        final product = products[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundImage: NetworkImage(product.imageUrl),
-                          ),
-                          // *** ACTUALIZACIÓN: Mostramos la valoración ***
-                          title: Row(
-                            children: [
-                              Text(product.name),
-                              if (product.isFeatured) // Icono de estrella si es destacado
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 8.0),
-                                  child: Icon(Icons.star, color: Colors.amber, size: 16),
-                                ),
-                            ],
-                          ),
-                          subtitle: Text("${product.category} - ${product.price.toStringAsFixed(2)}€ (${product.ratingAvg.toStringAsFixed(1)} ⭐️)"),
-                          
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _showEditProductDialog(product),
-                                tooltip: "Editar",
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deleteProduct(product.id),
-                                tooltip: "Eliminar",
-                              ),
-                            ],
-                          ),
-                        );
+  // --- 2. WIDGET LISTA (MODIFICADO CON BÚSQUEDA) ---
+  Widget _buildProductList() {
+    return Column(
+      children: [
+        const Text("Catálogo Actual", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+
+        // --- 3. BARRA DE BÚSQUEDA AÑADIDA ---
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              labelText: "Buscar por nombre de producto...",
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
                       },
-                    );
-                  },
-                ),
-              ),
-            ],
+                    )
+                  : null,
+              border: const OutlineInputBorder(),
+            ),
           ),
         ),
-      ),
+        
+        Expanded( 
+          child: StreamBuilder<List<ProductModel>>(
+            stream: _productService.getProductsStream(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(child: Text("No hay productos en el catálogo."));
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text("Error: ${snapshot.error}"));
+              }
+
+              // --- 4. LÓGICA DE FILTRADO ---
+              final allProducts = snapshot.data!;
+              final filteredProducts = _searchQuery.isEmpty
+                  ? allProducts
+                  : allProducts.where((product) {
+                      final name = product.name.toLowerCase();
+                      return name.contains(_searchQuery);
+                    }).toList();
+              
+              if (filteredProducts.isEmpty) {
+                return const Center(child: Text("No se encontraron productos."));
+              }
+
+              return ListView.builder(
+                itemCount: filteredProducts.length, // <-- Usamos la lista filtrada
+                itemBuilder: (context, index) {
+                  final product = filteredProducts[index]; // <-- Usamos la lista filtrada
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage: NetworkImage(product.imageUrl),
+                    ),
+                    title: Row(
+                      children: [
+                        Text(product.name),
+                        if (product.isFeatured)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8.0),
+                            child: Icon(Icons.star, color: Colors.amber, size: 16),
+                          ),
+                      ],
+                    ),
+                    subtitle: Text("${product.category} - ${product.price.toStringAsFixed(2)}€ (${product.ratingAvg.toStringAsFixed(1)} ⭐️)"),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () => _showEditProductDialog(product),
+                          tooltip: "Editar",
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteProduct(product.id),
+                          tooltip: "Eliminar",
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

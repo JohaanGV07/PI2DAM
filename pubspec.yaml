@@ -18,6 +18,8 @@ dependencies:
   latlong2: ^0.9.1
   flutter_rating_bar: ^4.0.1
   emoji_picker_flutter: ^4.3.0
+  pdf: ^3.11.3
+  universal_html: ^2.2.4
 
 
 dev_dependencies:

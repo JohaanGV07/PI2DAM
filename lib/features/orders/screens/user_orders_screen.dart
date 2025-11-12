@@ -3,33 +3,43 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Asegúrate de que estas rutas de import son correctas
-import 'package:flutter_firestore_login/core/services/order_service.dart';
+// --- 1. Imports necesarios ---
+import 'package:flutter_firestore_login/core/services/pdf_service.dart'; // El servicio PDF
 import 'package:flutter_firestore_login/shared/widgets/add_review_dialog.dart';
+// (El OrderService no es estrictamente necesario aquí si solo leemos)
+// import 'package:flutter_firestore_login/core/services/order_service.dart';
 
-class UserOrdersScreen extends StatelessWidget {
+
+// --- 2. Convertido a StatefulWidget ---
+class UserOrdersScreen extends StatefulWidget {
   final String username;
-  // --- 1. AÑADIDO: La variable de clase para userId ---
   final String userId; 
-  
+
   const UserOrdersScreen({
     super.key,
     required this.username,
-    // --- 2. CORREGIDO: El constructor ahora usa "this.userId" ---
     required this.userId, 
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Esta línea la tenías, la dejamos aunque el Stream no la use
-    final OrderService _orderService = OrderService();
+  State<UserOrdersScreen> createState() => _UserOrdersScreenState();
+}
 
+class _UserOrdersScreenState extends State<UserOrdersScreen> {
+  
+  // --- 3. Instancia del servicio y estado de carga ---
+  final PdfService _pdfService = PdfService();
+  bool _isGeneratingPdf = false;
+  String? _loadingOrderId; // Para saber qué pedido se está generando
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Mis Pedidos")),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('orders')
-            .where('username', isEqualTo: username)
+            .where('username', isEqualTo: widget.username) // <-- Usa widget.username
             .orderBy('orderDate', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -50,7 +60,11 @@ class UserOrdersScreen extends StatelessWidget {
           return ListView.builder(
             itemCount: orders.length,
             itemBuilder: (context, index) {
-              final orderData = orders[index].data() as Map<String, dynamic>;
+              final orderDoc = orders[index]; // Obtenemos el documento
+              final orderData = orderDoc.data() as Map<String, dynamic>;
+              // Añadimos el ID al mapa de datos para el PDF
+              orderData['id'] = orderDoc.id; 
+
               final total = orderData['totalAmount'] ?? 0.0;
               final status = orderData['status'] ?? 'Desconocido';
               final timestamp = orderData['orderDate'] as Timestamp?;
@@ -101,13 +115,47 @@ class UserOrdersScreen extends StatelessWidget {
                                     context: context,
                                     builder: (_) => AddReviewDialog(
                                       productId: itemData['id'],
-                                      username: username,
+                                      username: widget.username,
                                     ),
                                   );
                                 },
                               ),
                             );
                           }).toList(),
+
+                          // --- 4. AÑADIDO: Botón de Descargar Recibo ---
+                          const Divider(),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                            // Comprobamos si este pedido en concreto se está generando
+                            child: (_isGeneratingPdf && _loadingOrderId == orderDoc.id)
+                              ? const Center(child: Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: CircularProgressIndicator(),
+                                ))
+                              : TextButton.icon(
+                                  icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                                  label: const Text("Descargar Recibo", style: TextStyle(color: Colors.red)),
+                                  onPressed: () async {
+                                    setState(() {
+                                      _isGeneratingPdf = true;
+                                      _loadingOrderId = orderDoc.id; // Marcamos este pedido
+                                    });
+                                    try {
+                                      // Pasamos el mapa de datos completo
+                                      await _pdfService.generateAndDownloadReceipt(orderData);
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text("Error al generar PDF: $e"))
+                                      );
+                                    }
+                                    setState(() {
+                                      _isGeneratingPdf = false;
+                                      _loadingOrderId = null; // Limpiamos
+                                    });
+                                  },
+                                ),
+                          )
                         ],
                       )
                     // SI ESTÁ PENDIENTE: Devolvemos un ListTile normal
