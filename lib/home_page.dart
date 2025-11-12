@@ -15,6 +15,7 @@ import 'package:flutter_firestore_login/admin_dashboard_screen.dart'; // <-- Ya 
 // Imports de Features (Carpetas)
 import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
 import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart';
+import 'package:flutter_firestore_login/spin_wheel_screen.dart';
  
 
 // --- IMPORTS DEL CHAT ---
@@ -176,6 +177,22 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+
+          ListTile(
+          leading: const Icon(Icons.casino, color: Colors.orange),
+          title: const Text('Ruleta de Premios'),
+          onTap: () {
+            Navigator.pop(context); // Cierra el drawer
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SpinWheelScreen(
+                  username: widget.username, // Pasamos el username
+                ),
+              ),
+            );
+          },
+        ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.map),
