@@ -13,7 +13,7 @@ import 'package:flutter_firestore_login/address_picker_map_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final String username;
-  const CheckoutScreen({super.key, required this.username});
+  const CheckoutScreen({super.key, required this.username, required String userId});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();

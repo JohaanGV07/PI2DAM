@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_firestore_login/admin_dashboard_screen.dart';
+import 'package:flutter_firestore_login/admin_manage_coupons_screen.dart';
 
 // Imports de pantallas principales
 import 'admin_page.dart';
@@ -10,11 +10,12 @@ import 'login_page.dart';
 import 'contact_map_screen.dart';
 import 'manage_products_screen.dart';
 import 'admin_manage_orders_screen.dart';
-
+import 'package:flutter_firestore_login/admin_dashboard_screen.dart'; // <-- Ya lo tenías
 
 // Imports de Features (Carpetas)
 import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
 import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart';
+ 
 
 // --- IMPORTS DEL CHAT ---
 import 'package:flutter_firestore_login/core/services/chat_service.dart';
@@ -22,7 +23,7 @@ import 'package:flutter_firestore_login/chat_screen.dart';
 import 'package:flutter_firestore_login/admin_chat_list_screen.dart';
 
 class HomePage extends StatefulWidget {
-  // *** 1. AÑADE EL USERID ***
+  // *** 1. AHORA RECIBE USERID ***
   final String userId;
   final String username;
   final String imageURL;
@@ -30,7 +31,7 @@ class HomePage extends StatefulWidget {
 
   const HomePage({
     super.key,
-    required this.userId, // <-- 2. HAZLO OBLIGATORIO
+    required this.userId, // <-- Es obligatorio
     required this.username,
     required this.imageURL,
     required this.rol,
@@ -56,18 +57,18 @@ class _HomePageState extends State<HomePage> {
     final newURL = _imageURLController.text.trim();
     if (newURL.isEmpty) return;
     try {
-      final query = await FirebaseFirestore.instance
+      // Usamos el userId para actualizar, es más seguro
+      await FirebaseFirestore.instance
           .collection('users')
-          .where('username', isEqualTo: widget.username)
-          .limit(1).get();
-      if (query.docs.isNotEmpty) {
-        await FirebaseFirestore.instance.collection('users')
-            .doc(query.docs.first.id).update({'imageURL': newURL});
-        setState(() { _currentImageURL = newURL; });
-        ScaffoldMessenger.of(context,).showSnackBar(
-            const SnackBar(content: Text("Imagen actualizada")));
-        _imageURLController.clear();
-      }
+          .doc(widget.userId) // <-- Usamos el ID directamente
+          .update({'imageURL': newURL});
+
+      setState(() {
+        _currentImageURL = newURL;
+      });
+      ScaffoldMessenger.of(context,).showSnackBar(
+          const SnackBar(content: Text("Imagen actualizada")));
+      _imageURLController.clear();
     } catch (e) {
       ScaffoldMessenger.of(context,).showSnackBar(
           SnackBar(content: Text("Error al actualizar imagen: $e")));
@@ -101,6 +102,7 @@ class _HomePageState extends State<HomePage> {
   }
   
   Future<void> _signOut(BuildContext context) async {
+    // TODO: Si usas Google Sign-In, deberías llamar a _googleAuthService.signOut() aquí
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -138,31 +140,37 @@ class _HomePageState extends State<HomePage> {
               title: const Text('Inicio (Perfil)'),
               onTap: () => Navigator.pop(context),
             ),
+            
+            // *** NAVEGACIÓN CORREGIDA: VER CATÁLOGO ***
             ListTile(
               leading: const Icon(Icons.storefront),
               title: const Text('Ver Catálogo'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(context); // Cierra el drawer
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => ProductListScreen(
                       username: widget.username,
+                      userId: widget.userId, // <-- ¡Pasamos el userId!
                     ),
                   ),
                 );
               },
             ),
+            
+            // *** NAVEGACIÓN CORREGIDA: MIS PEDIDOS ***
             ListTile(
               leading: const Icon(Icons.receipt),
               title: const Text('Mis Pedidos'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(context); // Cierra el drawer
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => UserOrdersScreen(
                       username: widget.username,
+                      userId: widget.userId, // <-- ¡Pasamos el userId!
                     ),
                   ),
                 );
@@ -225,19 +233,10 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  "Toca la imagen para cambiarla",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
+                const Text("Toca la imagen para cambiarla", style: TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 20),
-                Text(
-                  "Hola, ${widget.username}",
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  "Rol: ${widget.rol}",
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
+                Text("Hola, ${widget.username}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                Text("Rol: ${widget.rol}", style: const TextStyle(fontSize: 16, color: Colors.grey)),
                 const SizedBox(height: 30),
 
                 // Botones de Admin
@@ -270,8 +269,7 @@ class _HomePageState extends State<HomePage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              AdminPage(currentAdminUsername: widget.username),
+                          builder: (_) => AdminPage(currentAdminUsername: widget.username),
                         ),
                       );
                     },
@@ -311,10 +309,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       );
                     },
-                    icon: const Icon(
-                      Icons.receipt_long,
-                      color: Colors.white,
-                    ),
+                    icon: const Icon(Icons.receipt_long, color: Colors.white),
                     label: const Text("Gestionar Pedidos"),
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(220, 48),
@@ -344,6 +339,28 @@ class _HomePageState extends State<HomePage> {
                       foregroundColor: Colors.white,
                     ),
                   ),
+
+                  const SizedBox(height: 10),
+
+                  // *** 2. AÑADIDO: BOTÓN DE CUPONES ***
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ManageCouponsScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.percent, color: Colors.white),
+                    label: const Text("Administrar Cupones"),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(220, 48),
+                      backgroundColor: Colors.orange.shade700,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+
                 ],
               ],
             ),

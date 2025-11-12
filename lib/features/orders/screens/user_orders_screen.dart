@@ -9,10 +9,21 @@ import 'package:flutter_firestore_login/shared/widgets/add_review_dialog.dart';
 
 class UserOrdersScreen extends StatelessWidget {
   final String username;
-  const UserOrdersScreen({super.key, required this.username});
+  // --- 1. AÑADIDO: La variable de clase para userId ---
+  final String userId; 
+  
+  const UserOrdersScreen({
+    super.key,
+    required this.username,
+    // --- 2. CORREGIDO: El constructor ahora usa "this.userId" ---
+    required this.userId, 
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Esta línea la tenías, la dejamos aunque el Stream no la use
+    final OrderService _orderService = OrderService();
+
     return Scaffold(
       appBar: AppBar(title: const Text("Mis Pedidos")),
       body: StreamBuilder<QuerySnapshot>(
@@ -47,11 +58,8 @@ class UserOrdersScreen extends StatelessWidget {
               final date = timestamp?.toDate();
               final dateString = date != null ? '${date.day}/${date.month} ${date.hour}:${date.minute.toString().padLeft(2, '0')}' : 'Fecha N/A';
 
-              // *** ¡AQUÍ ESTÁ LA LÓGICA NUEVA! ***
-              // 1. Decidimos si el tile debe ser expandible
               final bool isExpandable = (status == 'Listo' || status == 'Entregado');
               
-              // 2. Definimos los widgets comunes
               final leadingIcon = CircleAvatar(
                 backgroundColor: _getStatusColor(status),
                 child: Text((orders.length - index).toString()), // Numeración
@@ -64,7 +72,6 @@ class UserOrdersScreen extends StatelessWidget {
                 labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               );
 
-              // 3. Devolvemos el widget apropiado
               return Card(
                 elevation: 2,
                 margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -103,13 +110,12 @@ class UserOrdersScreen extends StatelessWidget {
                           }).toList(),
                         ],
                       )
-                    // SI ESTÁ PENDIENTE: Devolvemos un ListTile normal (no expandible)
+                    // SI ESTÁ PENDIENTE: Devolvemos un ListTile normal
                     : ListTile(
                         leading: leadingIcon,
                         title: titleText,
                         subtitle: subtitleText,
                         trailing: trailingChip,
-                        // Sin 'onTap' ni 'children', no hará nada al pulsarlo
                       ),
               );
             },

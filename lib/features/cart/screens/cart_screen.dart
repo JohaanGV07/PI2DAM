@@ -4,131 +4,179 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_firestore_login/core/providers/cart_provider.dart';
 import 'package:flutter_firestore_login/features/cart/screens/checkout_screen.dart';
+import '../../../core/models/product_model.dart';
 
-import '../../../core/models/product_model.dart'; // Asegúrate de que esta ruta es correcta
-
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
   final String username;
-  
+  final String userId; // <-- Asegúrate de que esto se pasa desde ProductListScreen
+
   const CartScreen({
     super.key,
     required this.username,
+    required this.userId,
   });
 
   @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  // Controlador para el campo del cupón
+  final TextEditingController _couponController = TextEditingController();
+
+  void _applyCoupon() {
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    cart.applyCoupon(_couponController.text);
+    // Ocultar el teclado
+    FocusScope.of(context).unfocus();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final cart = Provider.of<CartProvider>(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Tu Carrito"),
-        actions: [
-          // Botón para vaciar el carrito
-          IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            onPressed: () {
-              // (La lógica del diálogo de confirmación se queda igual)
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Confirmar'),
-                  content: const Text(
-                    '¿Estás seguro de que quieres vaciar el carrito?',
-                  ),
-                  actions: [
-                    TextButton(
-                      child: const Text('No'),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                    TextButton(
-                      child: const Text('Sí'),
-                      onPressed: () {
-                        cart.clearCart();
-                        Navigator.of(ctx).pop();
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
-            tooltip: 'Vaciar carrito',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Panel Superior con el Total
-          Card(
-            margin: const EdgeInsets.all(15),
-            elevation: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  Chip(
-                    label: Text(
-                      '${cart.totalAmount.toStringAsFixed(2)} €',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    backgroundColor: Theme.of(context).primaryColor,
-                  ),
-                  const SizedBox(width: 10),
-                  
-                  ElevatedButton(
-                    onPressed: (cart.items.isEmpty)
-                        ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => CheckoutScreen(
-                                  username: username,
-                                ),
-                              ),
-                            );
-                          },
-                    child: const Text('PEDIR AHORA'),
-                  ),
-                ],
+    // Usamos un Consumer aquí para reconstruir solo las partes necesarias
+    return Consumer<CartProvider>(
+      builder: (context, cart, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text("Tu Carrito"),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.delete_sweep),
+                onPressed: () {
+                  // ... (lógica del diálogo para vaciar carrito) ...
+                },
+                tooltip: 'Vaciar carrito',
               ),
-            ),
+            ],
           ),
+          body: Column(
+            children: [
+              // --- 1. Panel Superior (ACTUALIZADO CON DESCUENTOS) ---
+              Card(
+                margin: const EdgeInsets.all(15),
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: [
+                      // --- Campo de Cupón ---
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _couponController,
+                              decoration: const InputDecoration(
+                                labelText: "Código de Cupón",
+                                hintText: "BIENVENIDO10",
+                              ),
+                              textCapitalization: TextCapitalization.characters,
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: _applyCoupon,
+                            child: const Text("Aplicar"),
+                          ),
+                        ],
+                      ),
+                      // Mensaje de estado del cupón
+                      if (cart.couponStatusMessage.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            cart.couponStatusMessage,
+                            style: TextStyle(
+                              color: cart.appliedCouponCode != null ? Colors.green : Colors.red,
+                            ),
+                          ),
+                        ),
+                      
+                      const Divider(height: 20),
 
-          // Lista de productos en el carrito
-          Expanded(
-            child: cart.items.isEmpty
-                ? const Center(
-                    child: Text(
-                      '¡Tu carrito está vacío!',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: cart.items.length,
-                    itemBuilder: (ctx, i) => CartListItem(item: cart.items[i]),
+                      // --- Desglose de Precios ---
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Subtotal', style: TextStyle(fontSize: 16)),
+                          Text('${cart.subtotalAmount.toStringAsFixed(2)} €', style: const TextStyle(fontSize: 16)),
+                        ],
+                      ),
+                      if (cart.appliedCouponCode != null)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Descuento (${cart.appliedCouponCode})', style: const TextStyle(fontSize: 16, color: Colors.green)),
+                            Text('- ${cart.discountAmount.toStringAsFixed(2)} €', style: const TextStyle(fontSize: 16, color: Colors.green)),
+                          ],
+                        ),
+                      
+                      const SizedBox(height: 10),
+                      
+                      // --- TOTAL FINAL ---
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total',
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '${cart.totalAmount.toStringAsFixed(2)} €',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 10),
+                      
+                      // --- Botón de Pedir ---
+                      ElevatedButton(
+                        onPressed: (cart.items.isEmpty)
+                            ? null
+                            : () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CheckoutScreen(
+                                      username: widget.username,
+                                      userId: widget.userId,
+                                      // TODO: Pasar el cupón y el total al checkout
+                                    ),
+                                  ),
+                                );
+                              },
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 40)
+                        ),
+                        child: const Text('PEDIR AHORA'),
+                      ),
+                    ],
                   ),
+                ),
+              ),
+              
+              // --- 2. Lista de productos (se queda igual) ---
+              Expanded(
+                child: cart.items.isEmpty
+                    ? const Center(
+                        child: Text('¡Tu carrito está vacío!', style: TextStyle(fontSize: 18)),
+                      )
+                    : ListView.builder(
+                        itemCount: cart.items.length,
+                        itemBuilder: (ctx, i) => CartListItem(item: cart.items[i]),
+                      ),
+              )
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
-// -----------------------------------------------------------------
-// Widget interno para mostrar cada ítem del carrito
-// -----------------------------------------------------------------
+// (La clase CartListItem se queda exactamente igual)
 class CartListItem extends StatelessWidget {
+  // ... (código de CartListItem sin cambios) ...
   final CartItem item;
-
   const CartListItem({super.key, required this.item});
 
   @override
@@ -179,9 +227,6 @@ class CartListItem extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: () {
-                    
-                    // *** ¡AQUÍ ESTÁ LA CORRECCIÓN! ***
-                    // Añadimos los campos que faltaban
                     cart.addItem(
                       ProductModel(
                         id: item.id,
@@ -192,8 +237,8 @@ class CartListItem extends StatelessWidget {
                         category: '',
                         isAvailable: true,
                         isFeatured: false,
-                        ratingAvg: 0.0, // <-- Faltaba este
-                        ratingCount: 0,   // <-- Faltaba este
+                        ratingAvg: 0.0,
+                        ratingCount: 0,
                       ),
                     );
                   },

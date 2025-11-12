@@ -11,7 +11,14 @@ import 'package:flutter_firestore_login/features/cart/screens/cart_screen.dart';
 
 class ProductListScreen extends StatefulWidget {
   final String username;
-  const ProductListScreen({super.key, required this.username});
+  // --- 1. AÑADIMOS EL USERID ---
+  final String userId; 
+  
+  const ProductListScreen({
+    super.key, 
+    required this.username, 
+    required this.userId, // <-- Lo hacemos obligatorio
+  });
 
   @override
   State<ProductListScreen> createState() => _ProductListScreenState();
@@ -71,7 +78,55 @@ class _ProductListScreenState extends State<ProductListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Nuestro Catálogo"),
-        // El actions de la AppBar se elimina, usamos el FAB
+        actions: [
+          // --- 2. ICONO DEL CARRITO EN APPBAR (ACTUALIZADO) ---
+          Consumer<CartProvider>(
+            builder: (ctx, cart, child) => Stack(
+              alignment: Alignment.center,
+              children: [
+                child!, // El IconButton (definido abajo)
+                if (cart.itemCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2.0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10.0),
+                        color: Colors.red,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        cart.itemCount.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.shopping_cart),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CartScreen(
+                      username: widget.username,
+                      userId: widget.userId, // <-- Pasamos el userId
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       
       body: Column(
@@ -92,10 +147,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   return Center(child: Text("Error: ${snapshot.error}"));
                 }
 
-                // Aplicamos filtros y ordenación
                 final processedProducts = _filterAndSortProducts(snapshot.data!);
-                
-                // *** 1. SEPARAMOS DESTACADOS DEL RESTO ***
                 final featuredProducts = processedProducts.where((p) => p.isFeatured).toList();
                 final regularProducts = processedProducts.where((p) => !p.isFeatured).toList();
 
@@ -103,7 +155,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   return const Center(child: Text("No hay productos que coincidan con los filtros."));
                 }
 
-                // *** 2. USAMOS LISTVIEW PARA MOSTRAR SECCIONES ***
+                // Usamos ListView para mostrar secciones
                 return ListView(
                   children: [
                     // --- SECCIÓN DE DESTACADOS ---
@@ -115,7 +167,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      // Creamos la lista de destacados
                       ...featuredProducts.map((product) {
                         return ProductCard(
                           product: product,
@@ -126,7 +177,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     ],
 
                     // --- SECCIÓN NORMAL ---
-                    // Añadimos un título si también hay destacados
                     if (featuredProducts.isNotEmpty && regularProducts.isNotEmpty)
                       const Padding(
                         padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -136,7 +186,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         ),
                       ),
                     
-                    // Creamos la lista de regulares
                     ...regularProducts.map((product) {
                       return ProductCard(
                         product: product,
@@ -151,7 +200,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ],
       ),
 
-      // El FloatingActionButton se mantiene igual
+      // --- 3. FLOATING ACTION BUTTON (ACTUALIZADO) ---
       floatingActionButton: Consumer<CartProvider>(
         builder: (context, cartProvider, child) {
           final itemCount = cartProvider.itemCount; 
@@ -163,6 +212,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 MaterialPageRoute(
                   builder: (_) => CartScreen(
                     username: widget.username,
+                    userId: widget.userId, // <-- Pasamos el userId
                   ),
                 ),
               );
