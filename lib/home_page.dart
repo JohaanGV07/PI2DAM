@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_firestore_login/admin_manage_coupons_screen.dart';
+import 'package:flutter_firestore_login/my_prizes_screen.dart';
 
 // Imports de pantallas principales
 import 'admin_page.dart';
@@ -178,21 +179,39 @@ class _HomePageState extends State<HomePage> {
               },
             ),
 
-          ListTile(
-          leading: const Icon(Icons.casino, color: Colors.orange),
-          title: const Text('Ruleta de Premios'),
+            // *** AÑADIDO: MIS PREMIOS ***
+        ListTile(
+          leading: const Icon(Icons.card_giftcard, color: Colors.green),
+          title: const Text('Mis Premios'),
           onTap: () {
             Navigator.pop(context); // Cierra el drawer
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => SpinWheelScreen(
-                  username: widget.username, // Pasamos el username
+                builder: (_) => MyPrizesScreen(
+                  userId: widget.userId,
                 ),
               ),
             );
           },
         ),
+
+         ListTile(
+              leading: const Icon(Icons.casino, color: Colors.orange),
+              title: const Text('Ruleta de Premios'),
+              onTap: () {
+                Navigator.pop(context); // Cierra el drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SpinWheelScreen(
+                      username: widget.username,
+                      userId: widget.userId, // <-- ¡Este es el cambio!
+                    ),
+                  ),
+                );
+              },
+            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.map),
