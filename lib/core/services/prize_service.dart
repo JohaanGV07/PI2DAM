@@ -1,3 +1,5 @@
+// lib/core/services/prize_service.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PrizeService {
@@ -5,8 +7,11 @@ class PrizeService {
 
   // Añade un premio a la subcolección del usuario
   Future<void> addPrizeToUser(String userId, String prizeName) async {
+    print("INTENTANDO GUARDAR PREMIO: $prizeName para el usuario $userId"); // <-- LOG 1
+
     // No guardamos los premios "malos"
     if (prizeName.contains('Sigue intentando')) {
+      print("El premio es 'Sigue intentando', no se guarda."); // <-- LOG 2
       return; 
     }
 
@@ -23,8 +28,10 @@ class PrizeService {
         'isUsed': false, // Marcado como no usado
       });
       
+      print("¡Premio guardado con éxito en Firestore!"); // <-- LOG 3
+      
     } catch (e) {
-      print("Error al guardar el premio: $e");
+      print("Error CRÍTICO al guardar el premio: $e"); // <-- LOG DE ERROR
     }
   }
 
