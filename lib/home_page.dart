@@ -24,6 +24,8 @@ import 'package:flutter_firestore_login/core/services/chat_service.dart';
 import 'package:flutter_firestore_login/chat_screen.dart';
 import 'package:flutter_firestore_login/admin_chat_list_screen.dart';
 
+import 'package:flutter_firestore_login/my_coupons_screen.dart';
+
 class HomePage extends StatefulWidget {
   // *** 1. AHORA RECIBE USERID ***
   final String userId;
@@ -243,6 +245,18 @@ class _HomePageState extends State<HomePage> {
                 }
               },
             ),
+
+            ListTile(
+              leading: const Icon(Icons.local_offer, color: Colors.purple),
+              title: const Text('Mis Cupones'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => MyCouponsScreen(userId: widget.userId)
+                ));
+              },
+            ),
+            
             const Divider(),
             ListTile(
               leading: const Icon(Icons.exit_to_app),

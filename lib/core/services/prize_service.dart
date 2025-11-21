@@ -1,62 +1,88 @@
-// lib/core/services/prize_service.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math'; // Para generar códigos aleatorios
 
 class PrizeService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Añade un premio a la subcolección del usuario
+  // Añadir premio (desde la ruleta) - SE MANTIENE IGUAL
   Future<void> addPrizeToUser(String userId, String prizeName) async {
-    print("INTENTANDO GUARDAR PREMIO: $prizeName para el usuario $userId"); // <-- LOG 1
-
-    // No guardamos los premios "malos"
-    if (prizeName.contains('Sigue intentando')) {
-      print("El premio es 'Sigue intentando', no se guarda."); // <-- LOG 2
-      return; 
-    }
+    if (prizeName.contains('Sigue intentando')) return; 
 
     try {
-      // Referencia a la subcolección 'my_prizes' del usuario
-      final prizeRef = _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('my_prizes');
-          
-      await prizeRef.add({
+      await _firestore.collection('users').doc(userId).collection('my_prizes').add({
         'prizeName': prizeName,
-        'awardedAt': FieldValue.serverTimestamp(), // Fecha en que se ganó
-        'isUsed': false, // Marcado como no usado
+        'awardedAt': FieldValue.serverTimestamp(),
+        'isUsed': false,
       });
-      
-      print("¡Premio guardado con éxito en Firestore!"); // <-- LOG 3
-      
     } catch (e) {
-      print("Error CRÍTICO al guardar el premio: $e"); // <-- LOG DE ERROR
+      print("Error al guardar el premio: $e");
     }
   }
 
-  // Obtiene el stream de premios de un usuario
+  // Obtener stream de premios - SE MANTIENE IGUAL
   Stream<QuerySnapshot> getPrizesStream(String userId) {
     return _firestore
         .collection('users')
         .doc(userId)
         .collection('my_prizes')
-        .where('isUsed', isEqualTo: false) // Mostramos solo los no usados
+        .where('isUsed', isEqualTo: false)
         .orderBy('awardedAt', descending: true)
         .snapshots();
   }
 
-  // (Función futura para marcar un premio como usado)
-  Future<void> usePrize(String userId, String prizeId) async {
-    try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('my_prizes')
-          .doc(prizeId)
-          .update({'isUsed': true});
-    } catch (e) {
-      print("Error al usar el premio: $e");
-    }
+  // --- NUEVO: Obtener stream de CUPONES del usuario ---
+  Stream<QuerySnapshot> getUserCouponsStream(String userId) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('my_coupons') // Nueva subcolección
+        .where('isUsed', isEqualTo: false)
+        .snapshots();
+  }
+
+  // --- NUEVO: Convertir Premio en Cupón ---
+  Future<void> convertPrizeToCoupon(String userId, String prizeId, String prizeName) async {
+    // 1. Extraer el porcentaje del texto (ej: "10% DTO" -> 10)
+    int discount = 0;
+    if (prizeName.contains('10%')) discount = 10;
+    if (prizeName.contains('5%')) discount = 5;
+    if (prizeName.contains('20%')) discount = 20;
+
+    if (discount == 0) return; // No es un cupón válido
+
+    // 2. Generar un código único
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rnd = Random();
+    final String randomCode = String.fromCharCodes(Iterable.generate(
+        6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+    final String finalCode = 'GANADO-$discount-$randomCode'; // Ej: GANADO-10-A1B2C3
+
+    final batch = _firestore.batch();
+
+    // 3. Crear el cupón en la colección personal del usuario
+    final newCouponRef = _firestore.collection('users').doc(userId).collection('my_coupons').doc();
+    batch.set(newCouponRef, {
+      'code': finalCode,
+      'discountPercentage': discount,
+      'isUsed': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'source': 'Ruleta',
+    });
+
+    // 4. Marcar el premio original como usado (borrado lógico)
+    final prizeRef = _firestore.collection('users').doc(userId).collection('my_prizes').doc(prizeId);
+    batch.update(prizeRef, {'isUsed': true});
+
+    await batch.commit();
+  }
+
+  // --- NUEVO: Marcar premio como canjeado (Producto Gratis) ---
+  Future<void> markPrizeAsRedeemed(String userId, String prizeId) async {
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('my_prizes')
+        .doc(prizeId)
+        .update({'isUsed': true});
   }
 }

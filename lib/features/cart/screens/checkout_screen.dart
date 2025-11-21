@@ -1,5 +1,3 @@
-// lib/features/cart/screens/checkout_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_firestore_login/core/providers/cart_provider.dart';
@@ -10,10 +8,15 @@ import 'package:geocoding/geocoding.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_firestore_login/address_picker_map_screen.dart';
 
-
 class CheckoutScreen extends StatefulWidget {
   final String username;
-  const CheckoutScreen({super.key, required this.username, required String userId});
+  final String userId;
+
+  const CheckoutScreen({
+    super.key,
+    required this.username,
+    required this.userId,
+  });
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -79,18 +82,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  // Lógica para enviar el pedido (se queda igual)
+  // Lógica para enviar el pedido
   Future<void> _placeOrder(CartProvider cart) async {
     if (_isProcessing || cart.items.isEmpty) return;
     setState(() => _isProcessing = true);
 
-    const String currentUserId = 'ID_TEMPORAL'; // (Seguimos sin el UID real)
+    final String currentUserId = widget.userId;
     final String currentUsername = widget.username; 
     
-    // **AÑADIMOS la dirección al pedido**
-    // (Asegúrate de que tu OrderService puede guardar 'deliveryAddress')
-    // Por ahora solo lo imprimimos, pero la lógica de guardado iría aquí.
-    final String deliveryAddress = _addressController.text;
+    // Obtenemos la dirección del controlador
+    // (Puedes añadir esto al createOrder si modificas el servicio más adelante)
+    // final String deliveryAddress = _addressController.text;
 
     try {
       await _orderService.createOrder(
@@ -98,10 +100,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         username: currentUsername,
         cartItems: cart.items,
         totalAmount: cart.totalAmount,
-        // TODO: Modificar createOrder para que acepte la 'deliveryAddress'
       );
 
+      // Quemar cupón si se usó
+      await cart.markCouponAsUsed(widget.userId);
+      
       cart.clearCart();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("¡Pedido enviado con éxito!")),
@@ -154,16 +159,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             
             const SizedBox(height: 30),
             
-            // --- CAMPO DE DIRECCIÓN (MODIFICADO) ---
+            // --- CAMPO DE DIRECCIÓN (CORREGIDO) ---
             const Text('Dirección de Entrega', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             TextField(
               controller: _addressController,
-              decoration: InputDecoration(
+              decoration: InputDecoration( // <--- Sin 'const' aquí
                 labelText: "Dirección seleccionada",
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.map),
+                  icon: const Icon(Icons.map), // <--- CORREGIDO: Icons.map existe (map_search no)
                   onPressed: _openMapSelector,
                   tooltip: "Seleccionar en el mapa",
                 ),
@@ -175,7 +180,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             
             const SizedBox(height: 40),
 
-            // --- ¡EL BOTÓN QUE FALTABA! ---
+            // --- BOTÓN CONFIRMAR ---
             ElevatedButton.icon(
               onPressed: cart.items.isEmpty || _isProcessing
                   ? null

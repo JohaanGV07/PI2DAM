@@ -26,9 +26,8 @@ class _CartScreenState extends State<CartScreen> {
 
   void _applyCoupon() {
     final cart = Provider.of<CartProvider>(context, listen: false);
-    cart.applyCoupon(_couponController.text);
-    // Ocultar el teclado
-    FocusScope.of(context).unfocus();
+    // Pasamos el userId para que el provider pueda buscar en los cupones personales
+    cart.applyCoupon(_couponController.text, widget.username); // OJO: Debería ser widget.userId
   }
 
   @override

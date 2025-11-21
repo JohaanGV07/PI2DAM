@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-
-// (El resto de tus imports, como 'shared_preferences', 'dart:convert', etc.)
 import 'package:flutter_firestore_login/core/models/product_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// (La clase CartItem se queda exactamente igual)
 class CartItem {
   final String id;
   final String name;
@@ -20,138 +17,85 @@ class CartItem {
     required this.quantity,
   });
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'price': price,
-      'quantity': quantity,
-    };
-  }
+  Map<String, dynamic> toMap() => {
+    'id': id, 'name': name, 'price': price, 'quantity': quantity
+  };
 
-  factory CartItem.fromMap(Map<String, dynamic> map) {
-    return CartItem(
-      id: map['id'],
-      name: map['name'],
-      price: map['price'],
-      quantity: map['quantity'],
-    );
-  }
+  factory CartItem.fromMap(Map<String, dynamic> map) => CartItem(
+    id: map['id'], name: map['name'], price: map['price'], quantity: map['quantity']
+  );
 }
 
-// ---------------------------------------------
-// 2. El Provider (Actualizado)
-// ---------------------------------------------
 class CartProvider with ChangeNotifier {
-  
   Map<String, CartItem> _items = {};
-
-  // --- 2. Nuevas variables para Descuentos ---
   String? _appliedCouponCode;
   int _discountPercentage = 0;
   String _couponStatusMessage = '';
+  // Guardamos la referencia del documento del cupón para marcarlo como usado al pagar
+  DocumentReference? _appliedCouponRef; 
 
   CartProvider() {
     _loadCartFromPrefs();
   }
 
-  // --- Getters (Modificados) ---
   List<CartItem> get items => _items.values.toList();
   int get itemCount => _items.length;
   String? get appliedCouponCode => _appliedCouponCode;
   String get couponStatusMessage => _couponStatusMessage;
 
-  // El subtotal (precio antes de descuentos)
   double get subtotalAmount {
     var total = 0.0;
-    _items.forEach((key, cartItem) {
-      total += cartItem.price * cartItem.quantity;
-    });
+    _items.forEach((key, item) => total += item.price * item.quantity);
     return total;
   }
+  double get discountAmount => subtotalAmount * (_discountPercentage / 100);
+  double get totalAmount => subtotalAmount - discountAmount;
 
-  // El descuento calculado
-  double get discountAmount {
-    return subtotalAmount * (_discountPercentage / 100);
-  }
-
-  // El total final (con descuento)
-  double get totalAmount {
-    return subtotalAmount - discountAmount;
-  }
-
-  // --- Métodos del Carrito (Modificados) ---
-  // (addItem, removeSingleItem, removeItem, clearCart)
-  // Se modifican para que también reseteen el cupón si el carrito cambia.
-
+  // --- Añadir Producto (Soporta Gratis) ---
   void addItem(ProductModel product) {
-    // ... (lógica de añadir item se queda igual) ...
-    if (_items.containsKey(product.id)) {
-      _items.update(
-        product.id,
-        (existingItem) => CartItem(
-          id: existingItem.id,
-          name: existingItem.name,
-          price: existingItem.price,
-          quantity: existingItem.quantity + 1,
-        ),
-      );
+    // Si es gratis (precio 0), generamos un ID único para que no se agrupe
+    String productId = product.price == 0 ? "${product.id}_free_${DateTime.now().millisecondsSinceEpoch}" : product.id;
+
+    if (_items.containsKey(productId)) {
+      _items.update(productId, (existing) => CartItem(
+        id: existing.id,
+        name: existing.name,
+        price: existing.price,
+        quantity: existing.quantity + 1,
+      ));
     } else {
-      _items.putIfAbsent(
-        product.id,
-        () => CartItem(
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          quantity: 1,
-        ),
-      );
+      _items.putIfAbsent(productId, () => CartItem(
+        id: productId,
+        name: product.name,
+        price: product.price, // Será 0.0 si es premio
+        quantity: 1,
+      ));
     }
-    _resetCoupon(); // <-- Resetea el cupón si se añaden items
+    _resetCoupon(); 
     _saveCartToPrefs();
     notifyListeners();
   }
-
+  
+  // (removeSingleItem, removeItem, clearCart se mantienen igual, llamando a _saveCartToPrefs)
   void removeSingleItem(String productId) {
-    // ... (lógica de quitar item se queda igual) ...
     if (!_items.containsKey(productId)) return;
     if (_items[productId]!.quantity > 1) {
-      _items.update(
-        productId,
-        (existingItem) => CartItem(
-          id: existingItem.id,
-          name: existingItem.name,
-          price: existingItem.price,
-          quantity: existingItem.quantity - 1,
-        ),
-      );
+      _items.update(productId, (existing) => CartItem(
+          id: existing.id, name: existing.name, price: existing.price, quantity: existing.quantity - 1));
     } else {
       _items.remove(productId);
     }
-    _resetCoupon(); // <-- Resetea el cupón si se quitan items
-    _saveCartToPrefs();
-    notifyListeners();
+    _saveCartToPrefs(); notifyListeners();
   }
+  void removeItem(String id) { _items.remove(id); _saveCartToPrefs(); notifyListeners(); }
+  void clearCart() { _items.clear(); _resetCoupon(); _saveCartToPrefs(); notifyListeners(); }
 
-  void removeItem(String productId) {
-    _items.remove(productId);
-    _resetCoupon(); // <-- Resetea el cupón
-    _saveCartToPrefs();
-    notifyListeners();
-  }
 
-  void clearCart() {
-    _items.clear();
-    _resetCoupon(); // <-- Resetea el cupón
-    _saveCartToPrefs();
-    notifyListeners();
-  }
-
-  // --- 3. Nuevas Funciones de Cupones ---
-
-  // Valida y aplica un cupón de Firestore
-  Future<void> applyCoupon(String code) async {
+  // --- LÓGICA DE CUPONES AVANZADA ---
+  Future<void> applyCoupon(String code, String userId) async {
     final codeTrimmed = code.trim().toUpperCase();
+    _resetCoupon(); // Limpiamos previos
+
     if (codeTrimmed.isEmpty) {
       _couponStatusMessage = "Introduce un código.";
       notifyListeners();
@@ -159,56 +103,96 @@ class CartProvider with ChangeNotifier {
     }
 
     try {
-      final query = await FirebaseFirestore.instance
+      // 1. Buscar en Cupones Personales (Mis Cupones)
+      final personalQuery = await FirebaseFirestore.instance
+          .collection('users').doc(userId).collection('my_coupons')
+          .where('code', isEqualTo: codeTrimmed)
+          .where('isUsed', isEqualTo: false)
+          .limit(1).get();
+
+      if (personalQuery.docs.isNotEmpty) {
+        final data = personalQuery.docs.first.data();
+        _setCoupon(codeTrimmed, data['discountPercentage'], personalQuery.docs.first.reference);
+        return;
+      }
+
+      // 2. Buscar en Cupones Globales (Admin)
+      final globalQuery = await FirebaseFirestore.instance
           .collection('coupons')
           .where('code', isEqualTo: codeTrimmed)
           .where('isActive', isEqualTo: true)
-          .limit(1)
-          .get();
+          .limit(1).get();
 
-      if (query.docs.isEmpty) {
-        // No se encontró o no está activo
-        _discountPercentage = 0;
-        _appliedCouponCode = null;
-        _couponStatusMessage = "Cupón no válido o expirado.";
-      } else {
-        // ¡Cupón encontrado!
-        final couponData = query.docs.first.data();
-        _discountPercentage = couponData['discountPercentage'] ?? 0;
-        _appliedCouponCode = codeTrimmed;
-        _couponStatusMessage = "¡${_discountPercentage}% de descuento aplicado!";
+      if (globalQuery.docs.isNotEmpty) {
+        final doc = globalQuery.docs.first;
+        final data = doc.data();
+        
+        // Comprobar si el usuario ya lo usó (Lista 'usedBy')
+        List<dynamic> usedBy = data['usedBy'] ?? [];
+        if (usedBy.contains(userId)) {
+          _couponStatusMessage = "Ya has usado este cupón.";
+        } else {
+          _setCoupon(codeTrimmed, data['discountPercentage'], doc.reference);
+        }
+        return;
       }
+
+      _couponStatusMessage = "Cupón no válido o expirado.";
+
     } catch (e) {
-      _couponStatusMessage = "Error al validar el cupón.";
+      _couponStatusMessage = "Error al validar: $e";
     }
-    
     notifyListeners();
   }
 
-  // Resetea el cupón (privado)
+  // Método auxiliar para aplicar los datos
+  void _setCoupon(String code, int percent, DocumentReference ref) {
+    _appliedCouponCode = code;
+    _discountPercentage = percent;
+    _appliedCouponRef = ref;
+    _couponStatusMessage = "¡$percent% de descuento aplicado!";
+    notifyListeners();
+  }
+
   void _resetCoupon() {
     _appliedCouponCode = null;
     _discountPercentage = 0;
+    _appliedCouponRef = null;
     _couponStatusMessage = '';
   }
 
-  // --- Funciones de Guardado/Carga (se quedan igual) ---
-  Future<void> _saveCartToPrefs() async {
-    // ... (tu código de saveCart se queda igual)
-    final prefs = await SharedPreferences.getInstance();
-    final cartMap = _items.map((key, item) => MapEntry(key, item.toMap()));
-    final String cartString = json.encode(cartMap);
-    await prefs.setString('cartItems', cartString);
+  // --- Método para "Gastar" el cupón tras el checkout ---
+  Future<void> markCouponAsUsed(String userId) async {
+    if (_appliedCouponRef == null) return;
+
+    try {
+      // Si es personal (está en 'users/...')
+      if (_appliedCouponRef!.path.contains('users')) {
+        await _appliedCouponRef!.update({'isUsed': true});
+      } 
+      // Si es global (está en 'coupons/...')
+      else {
+        await _appliedCouponRef!.update({
+          'usedBy': FieldValue.arrayUnion([userId])
+        });
+      }
+    } catch (e) {
+      print("Error marcando cupón como usado: $e");
+    }
+    _resetCoupon();
   }
 
+  // (Persistencia: _saveCartToPrefs y _loadCartFromPrefs se quedan igual)
+  Future<void> _saveCartToPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartString = json.encode(_items.map((k, v) => MapEntry(k, v.toMap())));
+    await prefs.setString('cartItems', cartString);
+  }
   Future<void> _loadCartFromPrefs() async {
-    // ... (tu código de loadCart se queda igual)
     final prefs = await SharedPreferences.getInstance();
     if (!prefs.containsKey('cartItems')) return;
-    final String? cartString = prefs.getString('cartItems');
-    if (cartString == null) return;
-    final Map<String, dynamic> cartMap = json.decode(cartString);
-    _items = cartMap.map((key, itemData) => MapEntry(key, CartItem.fromMap(itemData)));
+    final cartMap = json.decode(prefs.getString('cartItems')!);
+    _items = cartMap.map<String, CartItem>((k, v) => MapEntry(k, CartItem.fromMap(v)));
     notifyListeners();
   }
 }
