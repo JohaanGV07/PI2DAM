@@ -1,14 +1,13 @@
-// lib/features/cart/screens/cart_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_firestore_login/core/providers/cart_provider.dart';
 import 'package:flutter_firestore_login/features/cart/screens/checkout_screen.dart';
+
 import '../../../core/models/product_model.dart';
 
 class CartScreen extends StatefulWidget {
   final String username;
-  final String userId; // <-- Asegúrate de que esto se pasa desde ProductListScreen
+  final String userId;
 
   const CartScreen({
     super.key,
@@ -21,18 +20,21 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  // Controlador para el campo del cupón
   final TextEditingController _couponController = TextEditingController();
 
   void _applyCoupon() {
     final cart = Provider.of<CartProvider>(context, listen: false);
-    // Pasamos el userId para que el provider pueda buscar en los cupones personales
-    cart.applyCoupon(_couponController.text, widget.username); // OJO: Debería ser widget.userId
+    
+    // *** CORRECCIÓN AQUÍ ***
+    // Antes pasabas widget.username, ahora pasamos widget.userId
+    // para que busque en la subcolección correcta de Firestore.
+    cart.applyCoupon(_couponController.text, widget.userId); 
+    
+    FocusScope.of(context).unfocus();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Usamos un Consumer aquí para reconstruir solo las partes necesarias
     return Consumer<CartProvider>(
       builder: (context, cart, child) {
         return Scaffold(
@@ -42,7 +44,26 @@ class _CartScreenState extends State<CartScreen> {
               IconButton(
                 icon: const Icon(Icons.delete_sweep),
                 onPressed: () {
-                  // ... (lógica del diálogo para vaciar carrito) ...
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Confirmar'),
+                      content: const Text('¿Estás seguro de que quieres vaciar el carrito?'),
+                      actions: [
+                        TextButton(
+                          child: const Text('No'),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                        ),
+                        TextButton(
+                          child: const Text('Sí'),
+                          onPressed: () {
+                            cart.clearCart();
+                            Navigator.of(ctx).pop();
+                          },
+                        ),
+                      ],
+                    ),
+                  );
                 },
                 tooltip: 'Vaciar carrito',
               ),
@@ -50,7 +71,7 @@ class _CartScreenState extends State<CartScreen> {
           ),
           body: Column(
             children: [
-              // --- 1. Panel Superior (ACTUALIZADO CON DESCUENTOS) ---
+              // --- Panel Superior ---
               Card(
                 margin: const EdgeInsets.all(15),
                 elevation: 4,
@@ -58,7 +79,7 @@ class _CartScreenState extends State<CartScreen> {
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      // --- Campo de Cupón ---
+                      // Campo de Cupón
                       Row(
                         children: [
                           Expanded(
@@ -66,18 +87,20 @@ class _CartScreenState extends State<CartScreen> {
                               controller: _couponController,
                               decoration: const InputDecoration(
                                 labelText: "Código de Cupón",
-                                hintText: "BIENVENIDO10",
+                                hintText: "Ej: GANADO-10-XYZ",
+                                isDense: true,
+                                border: OutlineInputBorder(),
                               ),
                               textCapitalization: TextCapitalization.characters,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: _applyCoupon,
                             child: const Text("Aplicar"),
                           ),
                         ],
                       ),
-                      // Mensaje de estado del cupón
                       if (cart.couponStatusMessage.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),
@@ -85,13 +108,14 @@ class _CartScreenState extends State<CartScreen> {
                             cart.couponStatusMessage,
                             style: TextStyle(
                               color: cart.appliedCouponCode != null ? Colors.green : Colors.red,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       
                       const Divider(height: 20),
 
-                      // --- Desglose de Precios ---
+                      // Desglose
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -110,7 +134,7 @@ class _CartScreenState extends State<CartScreen> {
                       
                       const SizedBox(height: 10),
                       
-                      // --- TOTAL FINAL ---
+                      // Total
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -127,7 +151,7 @@ class _CartScreenState extends State<CartScreen> {
                       
                       const SizedBox(height: 10),
                       
-                      // --- Botón de Pedir ---
+                      // Botón Pedir
                       ElevatedButton(
                         onPressed: (cart.items.isEmpty)
                             ? null
@@ -138,13 +162,14 @@ class _CartScreenState extends State<CartScreen> {
                                     builder: (_) => CheckoutScreen(
                                       username: widget.username,
                                       userId: widget.userId,
-                                      // TODO: Pasar el cupón y el total al checkout
                                     ),
                                   ),
                                 );
                               },
                         style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 40)
+                          minimumSize: const Size(double.infinity, 40),
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
                         ),
                         child: const Text('PEDIR AHORA'),
                       ),
@@ -153,7 +178,7 @@ class _CartScreenState extends State<CartScreen> {
                 ),
               ),
               
-              // --- 2. Lista de productos (se queda igual) ---
+              // --- Lista de productos ---
               Expanded(
                 child: cart.items.isEmpty
                     ? const Center(
@@ -172,9 +197,8 @@ class _CartScreenState extends State<CartScreen> {
   }
 }
 
-// (La clase CartListItem se queda exactamente igual)
+// Widget interno para lista (sin cambios)
 class CartListItem extends StatelessWidget {
-  // ... (código de CartListItem sin cambios) ...
   final CartItem item;
   const CartListItem({super.key, required this.item});
 
