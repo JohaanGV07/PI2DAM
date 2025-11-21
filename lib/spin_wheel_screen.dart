@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_fortune_wheel/flutter_fortune_wheel.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// 1. Importamos el servicio de premios
+// Importamos el servicio de premios
 import 'package:flutter_firestore_login/core/services/prize_service.dart';
 
 class SpinWheelScreen extends StatefulWidget {
@@ -23,7 +23,7 @@ class SpinWheelScreen extends StatefulWidget {
 class _SpinWheelScreenState extends State<SpinWheelScreen> {
   final StreamController<int> _selected = BehaviorSubject<int>();
   
-  // 2. Instancia del servicio de premios
+  // Instancia del servicio de premios
   final PrizeService _prizeService = PrizeService();
 
   final List<String> items = [
@@ -92,6 +92,7 @@ class _SpinWheelScreenState extends State<SpinWheelScreen> {
   }
 
   Future<void> _spinWheel() async {
+    // 1. Guardar fecha para bloquear 24h
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_lastSpinKey, DateTime.now().toIso8601String());
 
@@ -101,18 +102,31 @@ class _SpinWheelScreenState extends State<SpinWheelScreen> {
     });
     _startCountdown();
 
+    // 2. Girar la ruleta
     final int randomIndex = Fortune.randomInt(0, items.length);
     _selected.add(randomIndex);
 
     final String prize = items[randomIndex];
 
-    // Esperamos a que la animación termine (aprox 4-5 seg)
-    Future.delayed(const Duration(seconds: 4), () {
+    // 3. Esperar a que termine y guardar
+    Future.delayed(const Duration(seconds: 4), () async {
       _showPrizeDialog(prize);
       
-      // *** AQUÍ ESTÁ LA CLAVE: GUARDAR EL PREMIO ***
-      print("¡Giro completado! Guardando premio: $prize");
-      _prizeService.addPrizeToUser(widget.userId, prize);
+      // --- LÓGICA DE GUARDADO ---
+      if (!prize.contains('Sigue intentando')) {
+        await _prizeService.addPrizeToUser(widget.userId, prize);
+        
+        // Mensaje de confirmación visual (solo para depurar)
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("¡Premio '$prize' guardado en Mis Premios!"),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     });
   }
 
