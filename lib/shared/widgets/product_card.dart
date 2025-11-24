@@ -1,18 +1,21 @@
-// lib/shared/widgets/product_card.dart
-
 import 'package:flutter/material.dart';
-import 'package:flutter_firestore_login/core/models/product_model.dart';
-// --- 1. IMPORTA EL RATING BAR ---
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:flutter_firestore_login/core/models/product_model.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductModel product;
   final VoidCallback onAddToCart;
+  
+  // --- NUEVOS PARÁMETROS ---
+  final bool isFavorite;
+  final VoidCallback? onToggleFavorite;
 
   const ProductCard({
     super.key,
     required this.product,
     required this.onAddToCart,
+    this.isFavorite = false, // Por defecto falso
+    this.onToggleFavorite,   // Opcional (para admin no lo usaremos)
   });
 
   @override
@@ -24,12 +27,15 @@ class ProductCard extends StatelessWidget {
         padding: const EdgeInsets.all(12.0),
         child: Row(
           children: [
+            // Imagen
             CircleAvatar(
               radius: 40,
               backgroundImage: NetworkImage(product.imageUrl),
               backgroundColor: Colors.grey.shade200,
             ),
             const SizedBox(width: 16),
+            
+            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,7 +52,7 @@ class ProductCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   
-                  // --- 2. AÑADIMOS LAS ESTRELLAS ---
+                  // Estrellas
                   if (product.ratingCount > 0)
                     RatingBarIndicator(
                       rating: product.ratingAvg,
@@ -57,7 +63,7 @@ class ProductCard extends StatelessWidget {
                       itemCount: 5,
                       itemSize: 16.0,
                     )
-                  else // Si no hay valoraciones, mostramos un texto
+                  else
                     const Text(
                       "Sin valoraciones",
                       style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
@@ -74,11 +80,29 @@ class ProductCard extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.add_shopping_cart, color: Colors.blue),
-              onPressed: onAddToCart,
-              tooltip: "Añadir al carrito",
-            ),
+            
+            // --- BOTONES DE ACCIÓN ---
+            Column(
+              children: [
+                // Botón Favorito
+                if (onToggleFavorite != null)
+                  IconButton(
+                    icon: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: isFavorite ? Colors.red : Colors.grey,
+                    ),
+                    onPressed: onToggleFavorite,
+                    tooltip: isFavorite ? "Quitar de favoritos" : "Añadir a favoritos",
+                  ),
+                
+                // Botón Carrito
+                IconButton(
+                  icon: const Icon(Icons.add_shopping_cart, color: Colors.blue),
+                  onPressed: onAddToCart,
+                  tooltip: "Añadir al carrito",
+                ),
+              ],
+            )
           ],
         ),
       ),

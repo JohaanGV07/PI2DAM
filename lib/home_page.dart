@@ -1,9 +1,5 @@
-// lib/home_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_firestore_login/admin_manage_coupons_screen.dart';
-import 'package:flutter_firestore_login/my_prizes_screen.dart';
 
 // Imports de pantallas principales
 import 'admin_page.dart';
@@ -11,23 +7,24 @@ import 'login_page.dart';
 import 'contact_map_screen.dart';
 import 'manage_products_screen.dart';
 import 'admin_manage_orders_screen.dart';
-import 'package:flutter_firestore_login/admin_dashboard_screen.dart'; // <-- Ya lo tenías
+import 'package:flutter_firestore_login/admin_dashboard_screen.dart';
+import 'package:flutter_firestore_login/admin_manage_coupons_screen.dart';
 
 // Imports de Features (Carpetas)
 import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
 import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart';
 import 'package:flutter_firestore_login/spin_wheel_screen.dart';
- 
+import 'package:flutter_firestore_login/my_prizes_screen.dart';
 
-// --- IMPORTS DEL CHAT ---
+// Import de Favoritos
+import 'package:flutter_firestore_login/features/menu/screens/favorites_screen.dart';
+
+// Imports del Chat
 import 'package:flutter_firestore_login/core/services/chat_service.dart';
 import 'package:flutter_firestore_login/chat_screen.dart';
 import 'package:flutter_firestore_login/admin_chat_list_screen.dart';
 
-import 'package:flutter_firestore_login/my_coupons_screen.dart';
-
 class HomePage extends StatefulWidget {
-  // *** 1. AHORA RECIBE USERID ***
   final String userId;
   final String username;
   final String imageURL;
@@ -35,7 +32,7 @@ class HomePage extends StatefulWidget {
 
   const HomePage({
     super.key,
-    required this.userId, // <-- Es obligatorio
+    required this.userId, 
     required this.username,
     required this.imageURL,
     required this.rol,
@@ -56,25 +53,35 @@ class _HomePageState extends State<HomePage> {
     _currentImageURL = widget.imageURL;
   }
 
-  // (Lógica de _cambiarImagen, _mostrarDialogCambioImagen, y _signOut se mantiene igual)
+  // Lógica de cambio de imagen
   Future<void> _cambiarImagen() async {
     final newURL = _imageURLController.text.trim();
     if (newURL.isEmpty) return;
+
+    // Guardamos el ScaffoldMessenger antes del await para evitar el error
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     try {
-      // Usamos el userId para actualizar, es más seguro
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.userId) // <-- Usamos el ID directamente
+          .doc(widget.userId)
           .update({'imageURL': newURL});
+
+      // Verificamos 'mounted' justo antes de usar setState
+      if (!mounted) return;
 
       setState(() {
         _currentImageURL = newURL;
       });
-      ScaffoldMessenger.of(context,).showSnackBar(
+      
+      // Usamos la referencia guardada en lugar de 'context'
+      scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text("Imagen actualizada")));
+      
       _imageURLController.clear();
     } catch (e) {
-      ScaffoldMessenger.of(context,).showSnackBar(
+      // Usamos la referencia guardada
+      scaffoldMessenger.showSnackBar(
           SnackBar(content: Text("Error al actualizar imagen: $e")));
     }
   }
@@ -95,8 +102,8 @@ class _HomePageState extends State<HomePage> {
           ),
           ElevatedButton(
             onPressed: () {
-              _cambiarImagen();
-              Navigator.pop(context);
+              Navigator.pop(context); // Cerramos primero
+              _cambiarImagen(); // Luego ejecutamos la lógica async
             },
             child: const Text("Actualizar"),
           ),
@@ -106,9 +113,13 @@ class _HomePageState extends State<HomePage> {
   }
   
   Future<void> _signOut(BuildContext context) async {
-    // TODO: Si usas Google Sign-In, deberías llamar a _googleAuthService.signOut() aquí
-    Navigator.pushAndRemoveUntil(
-      context,
+    // Guardamos el Navigator antes del await si hubiera lógica async previa
+    final navigator = Navigator.of(context);
+    
+    // Si añades lógica de Firebase Auth aquí:
+    // await FirebaseAuth.instance.signOut();
+
+    navigator.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginPage()),
       (route) => false,
     );
@@ -145,76 +156,91 @@ class _HomePageState extends State<HomePage> {
               onTap: () => Navigator.pop(context),
             ),
             
-            // *** NAVEGACIÓN CORREGIDA: VER CATÁLOGO ***
             ListTile(
               leading: const Icon(Icons.storefront),
               title: const Text('Ver Catálogo'),
               onTap: () {
-                Navigator.pop(context); // Cierra el drawer
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => ProductListScreen(
                       username: widget.username,
-                      userId: widget.userId, // <-- ¡Pasamos el userId!
+                      userId: widget.userId,
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.favorite, color: Colors.red),
+              title: const Text('Mis Favoritos'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FavoritesScreen(
+                      userId: widget.userId,
                     ),
                   ),
                 );
               },
             ),
             
-            // *** NAVEGACIÓN CORREGIDA: MIS PEDIDOS ***
             ListTile(
               leading: const Icon(Icons.receipt),
               title: const Text('Mis Pedidos'),
               onTap: () {
-                Navigator.pop(context); // Cierra el drawer
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => UserOrdersScreen(
                       username: widget.username,
-                      userId: widget.userId, // <-- ¡Pasamos el userId!
+                      userId: widget.userId,
                     ),
                   ),
                 );
               },
             ),
 
-            // *** AÑADIDO: MIS PREMIOS ***
-        ListTile(
-          leading: const Icon(Icons.card_giftcard, color: Colors.green),
-          title: const Text('Mis Premios'),
-          onTap: () {
-            Navigator.pop(context); // Cierra el drawer
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MyPrizesScreen(
-                  userId: widget.userId,
-                ),
-              ),
-            );
-          },
-        ),
+            ListTile(
+              leading: const Icon(Icons.card_giftcard, color: Colors.green),
+              title: const Text('Mis Premios'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MyPrizesScreen(
+                      userId: widget.userId,
+                    ),
+                  ),
+                );
+              },
+            ),
 
-         ListTile(
+            ListTile(
               leading: const Icon(Icons.casino, color: Colors.orange),
               title: const Text('Ruleta de Premios'),
               onTap: () {
-                Navigator.pop(context); // Cierra el drawer
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => SpinWheelScreen(
                       username: widget.username,
-                      userId: widget.userId, // <-- ¡Este es el cambio!
+                      userId: widget.userId,
                     ),
                   ),
                 );
               },
             ),
+
             const Divider(),
+            
             ListTile(
               leading: const Icon(Icons.map),
               title: const Text('Contacto y Ubicación'),
@@ -226,38 +252,36 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+            
             ListTile(
               leading: const Icon(Icons.chat_bubble_outline),
               title: const Text('Soporte (Chat)'),
               onTap: () async {
                 Navigator.pop(context);
+                
+                // Obtenemos la sala (async)
+                // Guardamos el navigator antes del await si fuéramos a usarlo después
+                // En este caso, el Navigator.push usa el context, así que cuidado
+                final navigator = Navigator.of(context);
+
                 final roomId = await _chatService.getOrCreateChatRoom(widget.username);
-                if (mounted) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        roomId: roomId,
-                        currentUsername: widget.username,
-                      ),
+                
+                // Si el widget ya no está montado, no navegamos
+                if (!mounted) return;
+
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                      roomId: roomId,
+                      currentUsername: widget.username,
                     ),
-                  );
-                }
+                  ),
+                );
               },
             ),
 
-            ListTile(
-              leading: const Icon(Icons.local_offer, color: Colors.purple),
-              title: const Text('Mis Cupones'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => MyCouponsScreen(userId: widget.userId)
-                ));
-              },
-            ),
-            
             const Divider(),
+            
             ListTile(
               leading: const Icon(Icons.exit_to_app),
               title: const Text('Cerrar Sesión'),
@@ -273,7 +297,6 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // (Avatar y Saludo se quedan igual)
                 GestureDetector(
                   onTap: _mostrarDialogCambioImagen,
                   child: CircleAvatar(
@@ -289,10 +312,8 @@ class _HomePageState extends State<HomePage> {
                 Text("Rol: ${widget.rol}", style: const TextStyle(fontSize: 16, color: Colors.grey)),
                 const SizedBox(height: 30),
 
-                // Botones de Admin
                 if (widget.rol == 'admin') ...[
                   
-                  // *** AÑADIDO: BOTÓN DE DASHBOARD ***
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -306,14 +327,13 @@ class _HomePageState extends State<HomePage> {
                     label: const Text("Ver Dashboard"),
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(220, 48),
-                      backgroundColor: Colors.indigo, // Color principal
+                      backgroundColor: Colors.indigo,
                       foregroundColor: Colors.white,
                     ),
                   ),
                   
                   const SizedBox(height: 10),
 
-                  // (El resto de botones se mantiene igual)
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -392,7 +412,6 @@ class _HomePageState extends State<HomePage> {
 
                   const SizedBox(height: 10),
 
-                  // *** 2. AÑADIDO: BOTÓN DE CUPONES ***
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -410,7 +429,6 @@ class _HomePageState extends State<HomePage> {
                       foregroundColor: Colors.white,
                     ),
                   ),
-
                 ],
               ],
             ),
