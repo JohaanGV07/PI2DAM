@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_firestore_login/core/providers/cart_provider.dart';
 import 'package:flutter_firestore_login/features/cart/screens/checkout_screen.dart';
-
-import '../../../core/models/product_model.dart';
+import '../../../core/models/product_model.dart'; // Asegúrate de que esta ruta es correcta
 
 class CartScreen extends StatefulWidget {
   final String username;
@@ -24,12 +23,8 @@ class _CartScreenState extends State<CartScreen> {
 
   void _applyCoupon() {
     final cart = Provider.of<CartProvider>(context, listen: false);
-    
-    // *** CORRECCIÓN AQUÍ ***
-    // Antes pasabas widget.username, ahora pasamos widget.userId
-    // para que busque en la subcolección correcta de Firestore.
+    // Pasamos el userId para que busque en la subcolección correcta
     cart.applyCoupon(_couponController.text, widget.userId); 
-    
     FocusScope.of(context).unfocus();
   }
 
@@ -197,7 +192,7 @@ class _CartScreenState extends State<CartScreen> {
   }
 }
 
-// Widget interno para lista (sin cambios)
+// Widget interno para lista
 class CartListItem extends StatelessWidget {
   final CartItem item;
   const CartListItem({super.key, required this.item});
@@ -250,6 +245,7 @@ class CartListItem extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: () {
+                    // *** AQUÍ ESTÁ LA CORRECCIÓN PARA EL MODELO ***
                     cart.addItem(
                       ProductModel(
                         id: item.id,
@@ -262,6 +258,7 @@ class CartListItem extends StatelessWidget {
                         isFeatured: false,
                         ratingAvg: 0.0,
                         ratingCount: 0,
+                        stock: 99, // <-- ¡FALTABA ESTE CAMPO!
                       ),
                     );
                   },

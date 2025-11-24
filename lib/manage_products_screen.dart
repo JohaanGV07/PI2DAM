@@ -1,5 +1,3 @@
-// lib/manage_products_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_firestore_login/core/models/product_model.dart';
@@ -15,17 +13,20 @@ class ManageProductsScreen extends StatefulWidget {
 class _ManageProductsScreenState extends State<ManageProductsScreen> {
   final ProductService _productService = ProductService();
 
-  // Controladores del formulario
+  // Controladores
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _imageUrlController = TextEditingController();
   final TextEditingController _categoryController = TextEditingController();
-  bool _isFeatured = false; 
-
-  // --- 1. CONTROLADOR PARA LA BÚSQUEDA ---
+  // --- CONTROLADOR DE STOCK ---
+  final TextEditingController _stockController = TextEditingController();
+  
+  // --- CONTROLADOR DE BÚSQUEDA ---
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+
+  bool _isFeatured = false; 
 
   @override
   void initState() {
@@ -44,17 +45,19 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     _priceController.dispose();
     _imageUrlController.dispose();
     _categoryController.dispose();
-    _searchController.dispose(); // <-- No olvides el dispose
+    _stockController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  // (Las funciones _addProduct, _deleteProduct y _showEditProductDialog se mantienen exactamente igual)
   Future<void> _addProduct() async {
     final name = _nameController.text.trim();
     final description = _descController.text.trim();
     final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
     final imageUrl = _imageUrlController.text.trim();
     final category = _categoryController.text.trim();
+    // --- LEEMOS EL STOCK ---
+    final stock = int.tryParse(_stockController.text.trim()) ?? 0;
 
     if (name.isEmpty || price <= 0 || category.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,6 +77,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       isFeatured: _isFeatured,
       ratingAvg: 0.0,
       ratingCount: 0,
+      stock: stock, // <-- Guardamos el stock
     );
 
     try {
@@ -82,14 +86,14 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
         const SnackBar(content: Text("Producto agregado")),
       );
       
+      // Limpiar
       _nameController.clear();
       _descController.clear();
       _priceController.clear();
       _imageUrlController.clear();
       _categoryController.clear();
-      setState(() {
-        _isFeatured = false;
-      });
+      _stockController.clear(); 
+      setState(() { _isFeatured = false; });
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -117,6 +121,9 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     final priceEditController = TextEditingController(text: product.price.toString());
     final imageUrlEditController = TextEditingController(text: product.imageUrl);
     final categoryEditController = TextEditingController(text: product.category);
+    // --- CONTROLADOR STOCK EN EDICIÓN ---
+    final stockEditController = TextEditingController(text: product.stock.toString());
+    
     bool isFeaturedEdit = product.isFeatured;
 
     return showDialog(
@@ -132,7 +139,16 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                   children: [
                     TextField(controller: nameEditController, decoration: const InputDecoration(labelText: "Nombre")),
                     TextField(controller: descEditController, decoration: const InputDecoration(labelText: "Descripción")),
-                    TextField(controller: priceEditController, decoration: const InputDecoration(labelText: "Precio"), keyboardType: TextInputType.number),
+                    
+                    // Fila para Precio y Stock
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: priceEditController, decoration: const InputDecoration(labelText: "Precio"), keyboardType: TextInputType.number)),
+                        const SizedBox(width: 10),
+                        Expanded(child: TextField(controller: stockEditController, decoration: const InputDecoration(labelText: "Stock"), keyboardType: TextInputType.number)),
+                      ],
+                    ),
+
                     TextField(controller: categoryEditController, decoration: const InputDecoration(labelText: "Categoría")),
                     TextField(controller: imageUrlEditController, decoration: const InputDecoration(labelText: "URL Imagen")),
                     SwitchListTile(
@@ -172,6 +188,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                       isAvailable: product.isAvailable,
                       ratingAvg: product.ratingAvg,
                       ratingCount: product.ratingCount,
+                      stock: int.tryParse(stockEditController.text) ?? product.stock, // <-- Actualizamos
                     );
                     
                     try {
@@ -198,7 +215,6 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     );
   }
 
-  // --- WIDGET BUILD PRINCIPAL ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -206,22 +222,18 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth < 720) {
-            // --- VISTA MÓVIL (Estrecha) ---
             return Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  SingleChildScrollView( 
-                    child: _buildProductForm(),
-                  ),
+                  SingleChildScrollView(child: _buildProductForm()),
                   const SizedBox(height: 20),
                   const Divider(),
-                  _buildProductList(), // La lista (que es Expanded)
+                  _buildProductList(),
                 ],
               ),
             );
           } else {
-            // --- VISTA DESKTOP (Ancha) ---
             return Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
@@ -229,14 +241,12 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                 children: [
                   Expanded(
                     flex: 1,
-                    child: SingleChildScrollView(
-                      child: _buildProductForm(),
-                    ),
+                    child: SingleChildScrollView(child: _buildProductForm()),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     flex: 2,
-                    child: _buildProductList(), // <-- Lista a la derecha
+                    child: _buildProductList(),
                   ),
                 ],
               ),
@@ -247,7 +257,6 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     );
   }
 
-  // --- WIDGET FORMULARIO (Se queda igual) ---
   Widget _buildProductForm() {
     return Column(
       children: [
@@ -255,7 +264,16 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
         const SizedBox(height: 10),
         TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Nombre Producto")),
         TextField(controller: _descController, decoration: const InputDecoration(labelText: "Descripción")),
-        TextField(controller: _priceController, decoration: const InputDecoration(labelText: "Precio (ej: 2.50)"), keyboardType: TextInputType.number),
+        
+        // Fila para Precio y Stock
+        Row(
+          children: [
+            Expanded(child: TextField(controller: _priceController, decoration: const InputDecoration(labelText: "Precio (ej: 2.50)"), keyboardType: TextInputType.number)),
+            const SizedBox(width: 10),
+            Expanded(child: TextField(controller: _stockController, decoration: const InputDecoration(labelText: "Stock Inicial"), keyboardType: TextInputType.number)),
+          ],
+        ),
+
         TextField(controller: _categoryController, decoration: const InputDecoration(labelText: "Categoría (ej: Bebidas)")),
         TextField(controller: _imageUrlController, decoration: const InputDecoration(labelText: "URL de la Imagen (Opcional)")),
         SwitchListTile(
@@ -274,14 +292,13 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
     );
   }
 
-  // --- 2. WIDGET LISTA (MODIFICADO CON BÚSQUEDA) ---
   Widget _buildProductList() {
     return Column(
       children: [
         const Text("Catálogo Actual", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
 
-        // --- 3. BARRA DE BÚSQUEDA AÑADIDA ---
+        // Barra de Búsqueda
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: TextField(
@@ -292,9 +309,7 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                      },
+                      onPressed: () { _searchController.clear(); },
                     )
                   : null,
               border: const OutlineInputBorder(),
@@ -316,7 +331,6 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                 return Center(child: Text("Error: ${snapshot.error}"));
               }
 
-              // --- 4. LÓGICA DE FILTRADO ---
               final allProducts = snapshot.data!;
               final filteredProducts = _searchQuery.isEmpty
                   ? allProducts
@@ -330,9 +344,9 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
               }
 
               return ListView.builder(
-                itemCount: filteredProducts.length, // <-- Usamos la lista filtrada
+                itemCount: filteredProducts.length,
                 itemBuilder: (context, index) {
-                  final product = filteredProducts[index]; // <-- Usamos la lista filtrada
+                  final product = filteredProducts[index];
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundImage: NetworkImage(product.imageUrl),
@@ -347,7 +361,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen> {
                           ),
                       ],
                     ),
-                    subtitle: Text("${product.category} - ${product.price.toStringAsFixed(2)}€ (${product.ratingAvg.toStringAsFixed(1)} ⭐️)"),
+                    // Mostramos el Stock
+                    subtitle: Text("Stock: ${product.stock} | ${product.price.toStringAsFixed(2)}€"),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

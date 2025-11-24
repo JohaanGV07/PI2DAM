@@ -43,24 +43,27 @@ class FavoritesScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
               
-              // Reconstruimos un modelo básico para la tarjeta
+              // Reconstruimos el modelo
               final product = ProductModel(
-                id: docs[index].id, // ID del documento
-                name: data['name'],
-                description: '...', // No guardamos descripción en favoritos para ahorrar espacio
-                price: (data['price'] ?? 0).toDouble(),
-                imageUrl: data['imageUrl'],
+                id: docs[index].id,
+                name: data['name'] ?? 'Desconocido',
+                description: '...', 
+                price: (data['price'] ?? 0.0).toDouble(),
+                imageUrl: data['imageUrl'] ?? '',
                 category: '',
                 isAvailable: true,
                 isFeatured: false,
-                ratingAvg: 0, ratingCount: 0
+                
+                // --- CAMPOS NUEVOS AÑADIDOS PARA EVITAR ERROR ---
+                ratingAvg: 0.0,  // No guardamos rating en favoritos, usamos 0
+                ratingCount: 0,
+                stock: 99,      // Asumimos stock para favoritos (se comprobará al añadir al carrito)
               );
 
               return ProductCard(
                 product: product,
-                isFavorite: true, // En esta pantalla, todos son favoritos
+                isFavorite: true, 
                 onToggleFavorite: () {
-                  // Al pulsar, se quita de la lista
                   favService.toggleFavorite(userId, product);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Eliminado de favoritos")),

@@ -1,5 +1,3 @@
-// lib/core/models/product_model.dart
-
 class ProductModel {
   final String id;
   final String name;
@@ -9,10 +7,11 @@ class ProductModel {
   final String category;
   final bool isAvailable;
   final bool isFeatured;
-  
-  // --- 1. CAMPOS NUEVOS ---
   final double ratingAvg;
   final int ratingCount;
+  
+  // --- 1. NUEVO CAMPO STOCK ---
+  final int stock; 
 
   ProductModel({
     required this.id,
@@ -23,8 +22,9 @@ class ProductModel {
     required this.category,
     required this.isAvailable,
     required this.isFeatured,
-    required this.ratingAvg,   // <-- 2. AÑADE AL CONSTRUCTOR
-    required this.ratingCount, // <-- 2. AÑADE AL CONSTRUCTOR
+    required this.ratingAvg,
+    required this.ratingCount,
+    required this.stock, // <-- Añadido al constructor
   });
 
   // Método de fábrica
@@ -38,8 +38,9 @@ class ProductModel {
       category: data['category'] ?? 'General',
       isAvailable: data['isAvailable'] ?? true,
       isFeatured: data['isFeatured'] ?? false,
-      ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(), // <-- 3. AÑADE (por defecto 0.0)
-      ratingCount: data['ratingCount'] ?? 0,         // <-- 3. AÑADE (por defecto 0)
+      ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(),
+      ratingCount: data['ratingCount'] ?? 0,
+      stock: data['stock'] ?? 0, // <-- Añadido (por defecto 0)
     );
   }
 
@@ -53,8 +54,9 @@ class ProductModel {
       'category': category,
       'isAvailable': isAvailable,
       'isFeatured': isFeatured,
-      'ratingAvg': ratingAvg,     // <-- 4. AÑADE PARA GUARDAR
-      'ratingCount': ratingCount, // <-- 4. AÑADE PARA GUARDAR
+      'ratingAvg': ratingAvg,
+      'ratingCount': ratingCount,
+      'stock': stock, // <-- Añadido para guardar
     };
   }
 }

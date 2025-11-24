@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_firestore_login/core/services/prize_service.dart';
 
-// --- 1. IMPORTS NUEVOS NECESARIOS ---
+// Imports necesarios
 import 'package:provider/provider.dart';
 import 'package:flutter_firestore_login/core/providers/cart_provider.dart';
 import 'package:flutter_firestore_login/core/models/product_model.dart';
@@ -19,7 +19,6 @@ class MyPrizesScreen extends StatefulWidget {
 class _MyPrizesScreenState extends State<MyPrizesScreen> {
   final PrizeService _prizeService = PrizeService();
 
-  // --- 2. FUNCIÓN ACTUALIZADA PARA GESTIONAR EL PREMIO ---
   void _usePrize(String prizeId, String prizeName) {
     showDialog(
       context: context,
@@ -35,7 +34,7 @@ class _MyPrizesScreenState extends State<MyPrizesScreen> {
             onPressed: () async {
               Navigator.pop(ctx); // Cerrar diálogo
 
-              // A) SI ES UN CUPÓN (Tiene %)
+              // A) SI ES UN CUPÓN (Tiene % o DTO)
               if (prizeName.contains('%') || prizeName.contains('DTO')) {
                 await _prizeService.convertPrizeToCoupon(widget.userId, prizeId, prizeName);
                 if (mounted) {
@@ -46,27 +45,27 @@ class _MyPrizesScreenState extends State<MyPrizesScreen> {
               } 
               // B) SI ES UN PRODUCTO (Café, Postre, etc.)
               else {
-                // 1. Obtener el carrito
                 final cart = Provider.of<CartProvider>(context, listen: false);
                 
-                // 2. Crear un producto "falso" con precio 0
+                // Crear un producto "falso" con precio 0
                 final freeProduct = ProductModel(
-                  id: "prize_$prizeId", // ID único para que no se mezcle
+                  id: "prize_$prizeId", // ID único
                   name: prizeName,
                   description: "Premio de Ruleta (Gratis)",
                   price: 0.0, // ¡GRATIS!
-                  imageUrl: 'https://cdn-icons-png.flaticon.com/512/2531/2531115.png', // Icono genérico de regalo
+                  imageUrl: 'https://cdn-icons-png.flaticon.com/512/2531/2531115.png', // Icono regalo
                   category: 'Premios',
                   isAvailable: true,
                   isFeatured: false,
                   ratingAvg: 5.0,
                   ratingCount: 1,
+                  stock: 1, // <-- ¡IMPORTANTE: AÑADIDO STOCK (necesario por el cambio de modelo)!
                 );
 
-                // 3. Añadir al carrito
+                // Añadir al carrito
                 cart.addItem(freeProduct);
 
-                // 4. Marcar como usado en la base de datos
+                // Marcar como usado en la base de datos
                 await _prizeService.markPrizeAsRedeemed(widget.userId, prizeId);
 
                 if (mounted) {
@@ -137,7 +136,6 @@ class _MyPrizesScreenState extends State<MyPrizesScreen> {
                         trailing: ElevatedButton(
                           child: const Text("CANJEAR"),
                           onPressed: () {
-                            // Pasamos el ID y el NOMBRE a la función
                             _usePrize(prizeDoc.id, prizeName);
                           },
                         ),
