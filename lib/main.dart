@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_firestore_login/login_page.dart';
+// import 'login_page.dart'; // Ya no lo necesitamos aquí directamente
+import 'package:flutter_firestore_login/splash_screen.dart'; // <-- 1. IMPORTAMOS SPLASH
 
-// --- 1. Importa los paquetes necesarios ---
+// --- Imports del Provider ---
 import 'package:provider/provider.dart';
 import 'package:flutter_firestore_login/core/providers/cart_provider.dart';
 
@@ -20,11 +21,10 @@ void main() async {
     ),
   );
 
-  // --- 2. Envuelve la App con el Provider ---
   runApp(
     ChangeNotifierProvider(
       create: (context) => CartProvider(),
-      child: const MyApp(), // Tu app (MyApp) ahora es hija del Provider
+      child: const MyApp(),
     ),
   );
 }
@@ -36,9 +36,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Gestor cafetería',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const LoginPage(),
+      title: 'CoffeExpress', // Nombre actualizado
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        // Puedes personalizar el tema aquí si quieres colores café
+        // primaryColor: Colors.brown,
+        useMaterial3: true,
+      ),
+      // --- 2. CAMBIAMOS LA HOME POR EL SPLASH SCREEN ---
+      home: const SplashScreen(), 
     );
   }
 }

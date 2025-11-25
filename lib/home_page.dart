@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Imports de pantallas principales
 import 'admin_page.dart';
@@ -10,20 +9,21 @@ import 'admin_manage_orders_screen.dart';
 import 'package:flutter_firestore_login/admin_dashboard_screen.dart';
 import 'package:flutter_firestore_login/admin_manage_coupons_screen.dart';
 
-// Imports de Features (Carpetas)
+// Imports de Features
 import 'package:flutter_firestore_login/features/menu/screens/product_list_screen.dart';
 import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart';
 import 'package:flutter_firestore_login/spin_wheel_screen.dart';
 import 'package:flutter_firestore_login/my_prizes_screen.dart';
-import 'package:flutter_firestore_login/my_coupons_screen.dart'; // <-- 1. IMPORT RECUPERADO
-
-// Import de Favoritos
+import 'package:flutter_firestore_login/my_coupons_screen.dart';
 import 'package:flutter_firestore_login/features/menu/screens/favorites_screen.dart';
 
 // Imports del Chat
 import 'package:flutter_firestore_login/core/services/chat_service.dart';
 import 'package:flutter_firestore_login/chat_screen.dart';
 import 'package:flutter_firestore_login/admin_chat_list_screen.dart';
+
+// --- IMPORT NUEVO: PERFIL ---
+import 'package:flutter_firestore_login/profile_screen.dart';
 
 class HomePage extends StatefulWidget {
   final String userId;
@@ -44,82 +44,30 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late String _currentImageURL;
-  final TextEditingController _imageURLController = TextEditingController();
   final ChatService _chatService = ChatService();
 
-  @override
-  void initState() {
-    super.initState();
-    _currentImageURL = widget.imageURL;
-  }
-
-  // Lógica de cambio de imagen
-  Future<void> _cambiarImagen() async {
-    final newURL = _imageURLController.text.trim();
-    if (newURL.isEmpty) return;
-
-    // Guardamos el ScaffoldMessenger antes del await para evitar el error
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .update({'imageURL': newURL});
-
-      // Verificamos 'mounted' justo antes de usar setState
-      if (!mounted) return;
-
-      setState(() {
-        _currentImageURL = newURL;
-      });
-      
-      // Usamos la referencia guardada en lugar de 'context'
-      scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text("Imagen actualizada")));
-      
-      _imageURLController.clear();
-    } catch (e) {
-      // Usamos la referencia guardada
-      scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text("Error al actualizar imagen: $e")));
-    }
-  }
-
-  void _mostrarDialogCambioImagen() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Actualizar imagen de perfil"),
-        content: TextField(
-          controller: _imageURLController,
-          decoration: const InputDecoration(hintText: "Ingresa la URL de la nueva imagen"),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancelar"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Cerramos primero
-              _cambiarImagen(); // Luego ejecutamos la lógica async
-            },
-            child: const Text("Actualizar"),
-          ),
-        ],
-      ),
-    );
-  }
-  
+  // Lógica de Logout
   Future<void> _signOut(BuildContext context) async {
-    // Guardamos el Navigator antes del await si hubiera lógica async previa
     final navigator = Navigator.of(context);
-
     navigator.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginPage()),
       (route) => false,
+    );
+  }
+
+  // Navegar a Perfil
+  void _goToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          userId: widget.userId,
+          username: widget.username,
+          // *** CORRECCIÓN AQUÍ: nombre del parámetro correcto ***
+          currentImageURL: widget.imageURL, 
+          rol: widget.rol, 
+        ),
+      ),
     );
   }
 
@@ -127,12 +75,19 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Bienvenido"),
-        centerTitle: true,
+        title: const Text("Inicio"),
+        centerTitle: false,
         actions: [
+          // --- LOGO EN LA PARTE SUPERIOR DERECHA ---
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Image.asset('assets/coffeexpress.png', width: 40), 
+          ),
+          const SizedBox(width: 10),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => _signOut(context),
+            tooltip: "Cerrar Sesión",
           ),
         ],
       ),
@@ -143,15 +98,21 @@ class _HomePageState extends State<HomePage> {
             UserAccountsDrawerHeader(
               accountName: Text(widget.username),
               accountEmail: Text("Rol: ${widget.rol}"),
-              currentAccountPicture: CircleAvatar(
-                backgroundImage: NetworkImage(_currentImageURL),
+              currentAccountPicture: GestureDetector(
+                onTap: _goToProfile, // Ir al perfil al tocar avatar del drawer
+                child: CircleAvatar(
+                  backgroundImage: NetworkImage(widget.imageURL),
+                ),
               ),
-              decoration: const BoxDecoration(color: Colors.blue),
+              decoration: const BoxDecoration(color: Colors.brown), // Color café para la marca
             ),
             ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Inicio (Perfil)'),
-              onTap: () => Navigator.pop(context),
+              leading: const Icon(Icons.person),
+              title: const Text('Mi Perfil'), 
+              onTap: () {
+                Navigator.pop(context);
+                _goToProfile();
+              },
             ),
             
             ListTile(
@@ -220,7 +181,6 @@ class _HomePageState extends State<HomePage> {
               },
             ),
 
-            // --- 2. BOTÓN DE MIS CUPONES (RECUPERADO) ---
             ListTile(
               leading: const Icon(Icons.local_offer, color: Colors.purple),
               title: const Text('Mis Cupones'),
@@ -273,13 +233,9 @@ class _HomePageState extends State<HomePage> {
               title: const Text('Soporte (Chat)'),
               onTap: () async {
                 Navigator.pop(context);
-                
-                // Guardamos el navigator antes del await
                 final navigator = Navigator.of(context);
                 final roomId = await _chatService.getOrCreateChatRoom(widget.username);
-                
                 if (!mounted) return;
-
                 navigator.push(
                   MaterialPageRoute(
                     builder: (_) => ChatScreen(
@@ -304,148 +260,142 @@ class _HomePageState extends State<HomePage> {
       body: Center(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20.0),
+            padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // --- SALUDO DE BIENVENIDA ---
+                const Text(
+                  "Bienvenido a",
+                  style: TextStyle(fontSize: 24, color: Colors.grey),
+                ),
+                const Text(
+                  "CoffeExpress",
+                  style: TextStyle(
+                    fontSize: 36, 
+                    fontWeight: FontWeight.bold, 
+                    color: Colors.brown,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                
                 GestureDetector(
-                  onTap: _mostrarDialogCambioImagen,
+                  onTap: _goToProfile, // Ir a página de perfil
                   child: CircleAvatar(
-                    radius: 60,
-                    backgroundImage: NetworkImage(_currentImageURL),
+                    radius: 70,
+                    backgroundImage: NetworkImage(widget.imageURL),
                     backgroundColor: Colors.grey.shade200,
                   ),
                 ),
-                const SizedBox(height: 10),
-                const Text("Toca la imagen para cambiarla", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                const SizedBox(height: 20),
-                Text("Hola, ${widget.username}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                Text("Rol: ${widget.rol}", style: const TextStyle(fontSize: 16, color: Colors.grey)),
-                const SizedBox(height: 30),
+                const SizedBox(height: 15),
+                
+                Text(
+                  widget.username,
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+                
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.brown.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.brown.shade200),
+                  ),
+                  child: Text(
+                    "Rol: ${widget.rol}",
+                    style: TextStyle(fontSize: 16, color: Colors.brown.shade800),
+                  ),
+                ),
+                
+                const SizedBox(height: 40),
 
-                // Botones de Admin
+                // --- BOTONES DE ADMIN ---
                 if (widget.rol == 'admin') ...[
-                  
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AdminDashboardScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.dashboard, color: Colors.white),
-                    label: const Text("Ver Dashboard"),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(220, 48),
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
-                    ),
+                  const Divider(),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Text("PANEL DE ADMINISTRACIÓN", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
                   ),
                   
-                  const SizedBox(height: 10),
-
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AdminPage(currentAdminUsername: widget.username),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.admin_panel_settings),
-                    label: const Text("Administrar Usuarios"),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(220, 48),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ManageProductsScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.coffee),
-                    label: const Text("Administrar Catálogo"),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(220, 48),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-                  
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AdminManageOrdersScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.receipt_long, color: Colors.white),
-                    label: const Text("Gestionar Pedidos"),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(220, 48),
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-                  
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AdminChatListScreen(
-                            adminUsername: widget.username,
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.forum, color: Colors.white),
-                    label: const Text("Ver Chats de Clientes"),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(220, 48),
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ManageCouponsScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.percent, color: Colors.white),
-                    label: const Text("Administrar Cupones"),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(220, 48),
-                      backgroundColor: Colors.orange.shade700,
-                      foregroundColor: Colors.white,
-                    ),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      _AdminButton(
+                        icon: Icons.dashboard, 
+                        label: "Dashboard", 
+                        color: Colors.indigo,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen())),
+                      ),
+                      _AdminButton(
+                        icon: Icons.admin_panel_settings, 
+                        label: "Usuarios", 
+                        color: Colors.blue,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminPage(currentAdminUsername: widget.username))),
+                      ),
+                      _AdminButton(
+                        icon: Icons.coffee, 
+                        label: "Catálogo", 
+                        color: Colors.brown,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageProductsScreen())),
+                      ),
+                      _AdminButton(
+                        icon: Icons.receipt_long, 
+                        label: "Pedidos", 
+                        color: Colors.teal,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminManageOrdersScreen())),
+                      ),
+                      _AdminButton(
+                        icon: Icons.forum, 
+                        label: "Chats", 
+                        color: Colors.purple,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminChatListScreen(adminUsername: widget.username))),
+                      ),
+                      _AdminButton(
+                        icon: Icons.percent, 
+                        label: "Cupones", 
+                        color: Colors.orange.shade800,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageCouponsScreen())),
+                      ),
+                    ],
                   ),
                 ],
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Widget auxiliar para los botones de admin (más limpio)
+class _AdminButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _AdminButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, color: Colors.white, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
   }
