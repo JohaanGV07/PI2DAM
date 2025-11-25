@@ -52,33 +52,29 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
   
   void _onAddToCart(ProductModel product) {
+    // --- NUEVA COMPROBACIÓN DE STOCK ---
+    // (Aunque el botón esté deshabilitado, protegemos la lógica)
+    if (product.stock <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("¡Lo sentimos! Este producto está agotado."),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     final cart = Provider.of<CartProvider>(context, listen: false);
     cart.addItem(product); 
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("${product.name} añadido al carrito"), duration: const Duration(seconds: 1)),
     );
   }
 
-  // --- FUNCIÓN MEJORADA CON FEEDBACK ---
-  Future<void> _onToggleFav(ProductModel product, bool isCurrentlyFav) async {
-    try {
-      await _favService.toggleFavorite(widget.userId, product);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isCurrentlyFav ? "Eliminado de favoritos" : "Añadido a favoritos ❤️"),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error al guardar favorito: $e")),
-        );
-      }
-    }
+  void _onToggleFav(ProductModel product) {
+    _favService.toggleFavorite(widget.userId, product);
   }
 
   @override
@@ -160,6 +156,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
                     return ListView(
                       children: [
+                        // --- SECCIÓN DESTACADOS ---
                         if (featuredProducts.isNotEmpty) ...[
                           const Padding(
                             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -170,13 +167,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             return ProductCard(
                               product: product,
                               isFavorite: isFav,
-                              onToggleFavorite: () => _onToggleFav(product, isFav), // Pasamos el estado actual
+                              onToggleFavorite: () => _onToggleFav(product),
                               onAddToCart: () => _onAddToCart(product),
                             );
                           }),
                           const Divider(thickness: 2, height: 20, indent: 16, endIndent: 16),
                         ],
 
+                        // --- SECCIÓN NORMAL ---
                         if (featuredProducts.isNotEmpty && regularProducts.isNotEmpty)
                           const Padding(
                             padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -188,7 +186,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           return ProductCard(
                             product: product,
                             isFavorite: isFav,
-                            onToggleFavorite: () => _onToggleFav(product, isFav),
+                            onToggleFavorite: () => _onToggleFav(product),
                             onAddToCart: () => _onAddToCart(product),
                           );
                         }),
