@@ -15,6 +15,7 @@ import 'package:flutter_firestore_login/features/menu/screens/product_list_scree
 import 'package:flutter_firestore_login/features/orders/screens/user_orders_screen.dart';
 import 'package:flutter_firestore_login/spin_wheel_screen.dart';
 import 'package:flutter_firestore_login/my_prizes_screen.dart';
+import 'package:flutter_firestore_login/my_coupons_screen.dart'; // <-- 1. IMPORT RECUPERADO
 
 // Import de Favoritos
 import 'package:flutter_firestore_login/features/menu/screens/favorites_screen.dart';
@@ -115,9 +116,6 @@ class _HomePageState extends State<HomePage> {
   Future<void> _signOut(BuildContext context) async {
     // Guardamos el Navigator antes del await si hubiera lógica async previa
     final navigator = Navigator.of(context);
-    
-    // Si añades lógica de Firebase Auth aquí:
-    // await FirebaseAuth.instance.signOut();
 
     navigator.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -222,6 +220,23 @@ class _HomePageState extends State<HomePage> {
               },
             ),
 
+            // --- 2. BOTÓN DE MIS CUPONES (RECUPERADO) ---
+            ListTile(
+              leading: const Icon(Icons.local_offer, color: Colors.purple),
+              title: const Text('Mis Cupones'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MyCouponsScreen(
+                      userId: widget.userId,
+                    ),
+                  ),
+                );
+              },
+            ),
+
             ListTile(
               leading: const Icon(Icons.casino, color: Colors.orange),
               title: const Text('Ruleta de Premios'),
@@ -259,14 +274,10 @@ class _HomePageState extends State<HomePage> {
               onTap: () async {
                 Navigator.pop(context);
                 
-                // Obtenemos la sala (async)
-                // Guardamos el navigator antes del await si fuéramos a usarlo después
-                // En este caso, el Navigator.push usa el context, así que cuidado
+                // Guardamos el navigator antes del await
                 final navigator = Navigator.of(context);
-
                 final roomId = await _chatService.getOrCreateChatRoom(widget.username);
                 
-                // Si el widget ya no está montado, no navegamos
                 if (!mounted) return;
 
                 navigator.push(
@@ -312,6 +323,7 @@ class _HomePageState extends State<HomePage> {
                 Text("Rol: ${widget.rol}", style: const TextStyle(fontSize: 16, color: Colors.grey)),
                 const SizedBox(height: 30),
 
+                // Botones de Admin
                 if (widget.rol == 'admin') ...[
                   
                   ElevatedButton.icon(
